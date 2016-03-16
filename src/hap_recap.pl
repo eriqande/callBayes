@@ -7,10 +7,11 @@ use Getopt::Std;
 use vars qw/ %opt /;
 
 sub init(){
-	getopts( "hv:s:", \%opt ) or usage();
+	getopts( "hv:s:i:", \%opt ) or usage();
 	usage() if $opt{h};
-	print STDERR "Require specification for VCF file: -v\n" and exit if not defined $opt{v};
-	print STDERR "Require specification for SAM file: -s\n" and exit if not defined $opt{s};
+	print STDERR "Require path specification for VCF file: -v\n" and exit if not defined $opt{v};
+	print STDERR "Require path specification for SAM file: -s\n" and exit if not defined $opt{s};
+	print STDERR "Require Individual ID: -i\n" and exit if not defined $opt{i};
 }
 
 
@@ -18,13 +19,14 @@ sub usage(){
 print STDERR << "EOF";
     This program collect variant haplotype sites from SAM alignment file, and reports summary
  
-    usage: $0 [-h] -v vcf_file -s sam_file
+    usage: $0 [-h] -v vcf_file -s sam_file -i int
 
      -h        : this (help) message
      -v file   : variant caller file - VCF format (!! assumed the position is sorted)
      -s file   : sequence alignment file - SAM format
+     -i int    : individual ID (integer value) 
 
-    example: $0 -v s1.vcf -s s1.sam
+    example: $0 -v s1.vcf -s s1.sam -i 0
 
 EOF
         exit;
@@ -81,7 +83,7 @@ while(<SAM>) {
 		$ct++;
 
 		if ($cigar->reference_length < $rpos_adj || $rpos_adj < 1) {
-			$hapRead->{"seq"} .= "_";
+			$hapRead->{"seq"} .= "*";
 			push @{$hapRead->{"qual"}}, "_";
 			next;
 		} 
@@ -111,7 +113,8 @@ while(<SAM>) {
 
 for my $id (keys %{$hap}){
 	for my $h (keys %{$hap->{$id}}){
-		print join "\t", $id, $h, $hap->{$id}->{$h}->{"ct"}, 
+		print join "\t", $opt{i},
+				$id, $h, $hap->{$id}->{$h}->{"ct"}, 
 				(join ",", @{$hap->{$id}->{$h}->{"logC"}}),
 				(join ",", @{$hap->{$id}->{$h}->{"logW"}}),
 				 "\n";
