@@ -2,8 +2,9 @@ library(shiny)
 library("ggplot2")
 library("plyr")
 library("dplyr")
+library("DT")
 
-haplo.sum <- read.table("../data/hap/tot_filter.tbl", stringsAsFactors = FALSE) %>% 
+haplo.sum <- read.table("satrovirens02102016_haplo_filter.tbl", stringsAsFactors = FALSE) %>% 
   tbl_df
 colnames(haplo.sum) <- c("id", "locus", "haplo", "depth", "logP.call", "logP.miscall")
 
