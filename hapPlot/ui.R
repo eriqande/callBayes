@@ -17,17 +17,41 @@ shinyUI(fluidPage(
             column(3,titlePanel("  Haplotype Viewer")),
                 column(2,uiOutput("uiLocus")),
                column(2, uiOutput("uiIndiv")),
-                column(2, sliderInput("bins",
+                column(2, sliderInput("coverageMin",
                                   "Read Coverage filter",
-                                  min = 1,
-                                  max = 500,
-                                  value = 30)
+                                  min = 0,
+                                  max = 200,
+                                  value = 1)
                       )))),
       #hr(),
       #selectInput("selectLocus", label = "", 
       #            choices = list("Choice 1" = 1, "Choice 2" = 2, "Choice 3" = 3), 
        #           selected = 1),
 
-    column(6,plotOutput("distPlot")),
-    column(6,plotOutput("distPlot1"))
+    plotOutput("haplDensityPlot", height = 700,
+               dblclick = dblclickOpts(
+                 id = "plotH_dblclick"),
+               brush = brushOpts(
+                 id = "plotH_brush",
+                 direction = "y",
+                 resetOnNew = TRUE)),
+    column(6,plotOutput("distPlot",
+                        dblclick = dblclickOpts(
+                          id = "plot_dblclick"),
+                        brush = brushOpts(
+                          id = "plot_brush",
+                          direction = "y",
+                          resetOnNew = TRUE))),
+    column(6,plotOutput("distPlot1", 
+                        dblclick = dblclickOpts(
+                          id = "plot1_dblclick"),
+                        brush = brushOpts(
+                          id = "plot1_brush",
+                          direction = "y",
+                          resetOnNew = TRUE))),
+    column(4,plotOutput("distPlot2")),
+  column(4,plotOutput("distPlot3")),
+  column(4,plotOutput("distPlot4")),
+  DT::dataTableOutput('haploTbl')
+    
 ))
