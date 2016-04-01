@@ -46,39 +46,45 @@ shinyUI(fluidPage(
   #selectInput("selectLocus", label = "", 
   #            choices = list("Choice 1" = 1, "Choice 2" = 2, "Choice 3" = 3), 
   #           selected = 1),
-  
-  column(6,renderUI
-         plotOutput("haplDensityPlot", height = 700,
+  #column(12, h1("")),
+  fluidRow( 
+  column(5,plotOutput("haplDensityPlot",height="auto",
                       dblclick = dblclickOpts(
                         id = "plotH_dblclick"),
                       brush = brushOpts(
                         id = "plotH_brush",
                         direction = "y",
                         resetOnNew = TRUE))),
-  column(1,plotOutput("fracIndivPlot",height = 700)),
-  column(1,plotOutput("numHapPlot",height = 700)),
-  column(4, plotOutput("distPlot3",height = 700)),
-  column(4,plotOutput("AlleleRatioByIndiv",
+  column(2,plotOutput("numHapPlot",height="auto")),
+  column(2,plotOutput("fracIndivPlot",height="auto")),
+  column(3, plotOutput("readDepthPerLocus",height="auto"))),
+  
+  column(12, h1("")),
+  br(),
+  fluidRow( 
+  column(5,plotOutput("AlleleRatioByIndiv",height="auto",
                       dblclick = dblclickOpts(
                         id = "plot_dblclick"),
                       brush = brushOpts(
                         id = "plot_brush",
                         direction = "y",
                         resetOnNew = TRUE))),
-  column(4,plotOutput("readDepthByIndiv")),
-  column(4,plotOutput("distPlot", 
-                      dblclick = dblclickOpts(
-                        id = "plot1_dblclick"),
-                      brush = brushOpts(
-                        id = "plot1_brush",
-                        direction = "y",
-                        resetOnNew = TRUE))),
-  column(4,plotOutput("distPlot2")),
-  column(4,plotOutput("histHap")),
-  column(4,plotOutput("PairWiseHap")),
+  column(2,plotOutput("fracHaploPlot",height="auto")),
+  column(2,plotOutput("meanReadDepthByIndiv",height="auto")),
+  column(3,plotOutput("readDepthByIndiv",height="auto"))),
+#   column(4,plotOutput("distPlot", 
+#                       dblclick = dblclickOpts(
+#                         id = "plot1_dblclick"),
+#                       brush = brushOpts(
+#                         id = "plot1_brush",
+#                         direction = "y",
+#                         resetOnNew = TRUE))),
+  column(4,plotOutput("hapSeq",height="auto")),
+  column(4,plotOutput("histHap",height="auto")),
+  column(4,plotOutput("PairWiseHap",height="auto")),
   column(4, DT::dataTableOutput('haploTbl'),style="border-right:2px solid grey;"),
-  column(6, DT::dataTableOutput('haploSummary'),
-         offset=2),
+  column(4, DT::dataTableOutput('haploFreqTbl'),style="border-right:2px solid grey;"),
+  column(4, DT::dataTableOutput('haploSummary')),
   titlePanel("", windowTitle = "HapPLOType: a view to your haplotypes")
   
 ))
