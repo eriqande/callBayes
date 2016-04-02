@@ -177,7 +177,7 @@ shinyServer(function(input, output, session) {
       theme(legend.position="bottom",
             panel.margin = unit(0, 'mm'),
             plot.margin = unit(c(0, 0, 0, 0), "mm"))+
-      scale_x_discrete(breaks= pretty_breaks())+
+      #scale_x_discrete(breaks= pretty_breaks())+
       coord_cartesian(ylim=rangesH$y)
   },height = function(){max(ifelse(input$selectLocus=="ALL",9*length(locus.label),1),400) })  
   
@@ -206,8 +206,8 @@ shinyServer(function(input, output, session) {
             axis.ticks.y=element_blank(),
             panel.margin = unit(0, 'mm'),
             plot.margin = unit(c(0, 2, 0, 0), "mm"))+
-      coord_cartesian(ylim=rangesH$y)+
-      scale_x_discrete(breaks= pretty_breaks(), limits=c(-1, max(frac.calleable$n)+1))
+      coord_cartesian(ylim=rangesH$y)#+
+      #scale_x_discrete(limits=c(-1, max(frac.calleable$n)+1)) #breaks= pretty_breaks()
   },height = function(){max(ifelse(input$selectLocus=="ALL",9*length(locus.label),1),400) })
   
   
