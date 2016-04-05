@@ -563,7 +563,7 @@ shinyServer(function(input, output, session) {
       geom_point()+
       xlab("haplotype 1")+
       ylab("haplotype 2")+
-      geom_point(data=freq.hap, aes(x=re.hap1,y=re.hap2, size=freq*n.hap/2),  linetype="dashed", shape=21, fill=NA, color="black")+
+      geom_point(data=freq.hap, aes(x=re.hap1,y=re.hap2, size=freq*n.hap/2), shape=21, fill=NA, color="black")+
       scale_color_discrete(guide=FALSE)+
       scale_size_continuous(range = c(3,20), guide=FALSE)+
       theme_bw()
@@ -598,7 +598,7 @@ shinyServer(function(input, output, session) {
       return ()   
   
     DT::datatable(
-      haplo.freqTbl() , options = list(
+      haplo.freqTbl() %>% mutate(obs.freq=round(obs.freq,3), expected.freq=round(expected.freq,3)), options = list(
           lengthMenu = list(c(5, 15, -1), c('5', '15', 'All')),
           pageLength = 15
         )

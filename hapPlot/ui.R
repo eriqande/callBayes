@@ -12,35 +12,49 @@ shinyUI(fluidPage(
     div(
       style="padding: 6px; border-bottom: 1px solid #CCC; background: #CFCFCD",
       fluidRow( 
-        column(2,column(8,offset=2,"HapPLOType",style="margin-top:16px;font-family:helvetica; font-size:40px"),
+        column(2,column(8,offset=2,"HapPLOType",style="margin-top:15%;font-family:helvetica; font-size:200%"),
                column(2)),
         column(3,
-               column(3, selectInput("selectLocus", label = "Locus:","ALL",selected = "ALL"),
-                      style="padding-right: 0px; margin-top:10px;padding-left:0px; padding-right: 0px;"),
-               column(1,actionButton("locusBack", label="<<"),style="margin-top:36px; padding-right: 0px;"),
-               column(1,actionButton("locusFor", label=">>"),style="margin-top:36px; padding-right: 0px;"),
-               column(3,selectInput("selectIndiv", label = "Individual:","ALL", selected = "ALL"),
-                      style="padding-right: 0px; margin-top:10px",offset=1),
-               column(1,actionButton("indivBack", label="<<"),style="margin-top:36px; padding-right: 0px;"),
-               column(1,actionButton("indivFor", label=">>"),style="margin-top:36px; padding-right: 0px;"),
-               column(1)
+               column(12, 
+                      column(1,"Locus:",style="margin-top:10%;"),
+                      column(6,selectInput("selectLocus", label ="","ALL",selected = "ALL"),
+                             style="padding-right: 0px; margin-top:0.3%;padding-left:10%; padding-right: 0px;"),
+                      column(2,actionButton("locusBack", label="<"), 
+                             style="margin-top:6%; padding-right:0%"),
+                      column(2,actionButton("locusFor", label=">"),
+                             style="padding-right: 0px; margin-top:6%;padding-left:0%; margin-left: 0px; padding-right: 0px;"),
+                      style="padding-right: 0px;padding-left:0px; padding-right: 0px;margin: -3% 0 0 0;"),
+               #column(1,actionButton("locusBack", label="<<"),style="margin-top:10%; padding-right: 0px;"),
+               #column(1,actionButton("locusFor", label=">>"),style="margin-top:10%; padding-right: 0px;"),
+               column(12, 
+                      column(1,"Indiv:",style="margin-top:10%;"),
+                      column(6,selectInput("selectIndiv", label = "","ALL", selected = "ALL"),
+                             style="padding-right: 0px; margin-top:0.3%;padding-left:10%; padding-right: 0px;"),
+                      column(2,actionButton("indivBack", label="<"),
+                             style="margin-top:6%; padding-right: 0px;"),
+                      column(2,actionButton("indivFor", label=">"),
+                             style="padding-right: 0px; margin-top:6%;padding-left:0%; margin-left: 0px; padding-right: 0px;"),
+                      style="padding: 0 0 0 0; margin: -8% 0 0 0;"
+                      ) 
         ),
-        column(3, 
-               column(5, sliderInput("coverageMin",
-                                     "Minimum Read Coverage",
+        column(3,
+               column(6,"Min read coverage:"),
+               column(6,"Min allelic ratio:"),
+               column(6, sliderInput("coverageMin",
+                                     "",
                                      min = 0,
                                      max = 200,
                                      value = 1)),
-               column(5,sliderInput("minAlleleRatio",
-                                    "Minimum Allelic Depth Ratio",
+               column(6,sliderInput("minAlleleRatio",
+                                    "",
                                     min = 0,
                                     max = 1,
-                                    value = 0.2)),
-               column(2, actionButton("updateFilter", label="Update"), style="margin-top:36px; padding-right: 0px;")),
-        column(1, checkboxInput("topTwo", label = h5("Keep only the top 2 most common Haplotypes"), value = FALSE)),
-        column(1, h5("Post Filtered Table:"),downloadButton('downloadData', 'Download'), align="center",
-               tags$style(type='text/css', "#downloadData { vertical-align: bottom; height: 40px;margin-top:10px;font-size:20px}"),
-               offset=2)
+                                    value = 0.2))),
+        column(1, checkboxInput("topTwo", label = "Keep only the top 2 most common Haplotypes", value = FALSE)),
+        column(1, actionButton("updateFilter", label="Update"), style="margin-top:3%; padding-right: 0px;"
+        ),
+        column(2, h5("Post Filtered Table:"),downloadButton('downloadData', 'Download'), align="center",
+               tags$style(type='text/css', "#downloadData { vertical-align: bottom; height: 40px;margin-top:10px;font-size:20px}"))
       ))),
   #hr(),
   #selectInput("selectLocus", label = "", 
@@ -82,9 +96,17 @@ shinyUI(fluidPage(
   column(4,plotOutput("hapSeq",height="auto")),
   column(4,plotOutput("histHap",height="auto")),
   column(4,plotOutput("PairWiseHap",height="auto")),
-  column(4, DT::dataTableOutput('haploTbl'),style="border-right:2px solid grey;"),
-  column(4, DT::dataTableOutput('haploFreqTbl'),style="border-right:2px solid grey;"),
-  column(4, DT::dataTableOutput('haploSummary')),
+fluidRow(
+  div(
+    style="padding: 10px; border-bottom: 8px solid white; background: white"
+  ),
+  column(5, DT::dataTableOutput('haploTbl')),#,style="border-right:2px solid grey;"),
+  column(5, DT::dataTableOutput('haploFreqTbl'), offset=2),
+  column(12),
+  div(
+    style="padding: 10px; border-bottom: 8px solid white; background: white"
+  ),
+  column(4, DT::dataTableOutput('haploSummary'))),
   titlePanel("", windowTitle = "HapPLOType: a view to your haplotypes")
   
 ))
