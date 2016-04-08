@@ -10,51 +10,67 @@ shinyUI(fluidPage(
     top = 0, left = 0, right = 0,
     fixed = TRUE,
     div(
-      style="padding: 6px; border-bottom: 1px solid #CCC; background: #CFCFCD",
+      style="padding: 5px 5px 0px; border-bottom: 1px solid #CCC; background: #CFCFCD",
       fluidRow( 
-        column(2,column(8,offset=2,"HapPLOType",style="margin-top:15%;font-family:helvetica; font-size:200%"),
-               column(2)),
-        column(3,
+        #         column(2,
+        #                column(8,offset=2,"HapPLOType",style="margin-top:5%;font-family:helvetica; font-size:400%"),
+        #                column(2)),
+        column(5,
+               column(12,
+                      column(1, "Panel:",style="margin-top:20px;font-weight:bold"),
+                      column(11, selectInput("selectDB", label ="","",selected = NULL, width="100%"),
+                             style="padding-right: 0px; margin-top:0%;padding-left:10%; padding-right: 0px;"),
+                      style="padding-right: 0px; margin-top:0%;padding-left:0%; padding-right: 0px;
+                      margin: -3% 0 0 0;"),
                column(12, 
-                      column(1,"Locus:",style="margin-top:10%;"),
-                      column(6,selectInput("selectLocus", label ="","ALL",selected = "ALL"),
-                             style="padding-right: 0px; margin-top:0.3%;padding-left:10%; padding-right: 0px;"),
-                      column(2,actionButton("locusBack", label="<"), 
-                             style="margin-top:6%; padding-right:0%"),
-                      column(2,actionButton("locusFor", label=">"),
-                             style="padding-right: 0px; margin-top:6%;padding-left:0%; margin-left: 0px; padding-right: 0px;"),
+                      column(1,"Locus:",style="margin-top:20px;font-weight:bold"),
+                      column(8,selectInput("selectLocus", label ="","ALL",selected = "ALL", width="90%"),
+                             style="padding-right: 0px; margin-top:0%;padding-left:10%; padding-right: 0px;"),
+                      column(1,actionButton("locusBack", label="<", width="80%"), 
+                             style="margin-top:20px; padding: 0 0% 0 0%", offset=1),
+                      column(1,actionButton("locusFor", label=">", width="80%"),
+                             style="margin-top:20px;padding:0 0% 0 0%; margin-left: 0px;"),
                       style="padding-right: 0px;padding-left:0px; padding-right: 0px;margin: -3% 0 0 0;"),
                #column(1,actionButton("locusBack", label="<<"),style="margin-top:10%; padding-right: 0px;"),
                #column(1,actionButton("locusFor", label=">>"),style="margin-top:10%; padding-right: 0px;"),
                column(12, 
-                      column(1,"Indiv:",style="margin-top:10%;"),
-                      column(6,selectInput("selectIndiv", label = "","ALL", selected = "ALL"),
+                      column(1,"Indiv:",style="margin-top:20px;font-weight:bold"),
+                      column(8,selectInput("selectIndiv", label = "","ALL", selected = "ALL",width="90%"),
                              style="padding-right: 0px; margin-top:0.3%;padding-left:10%; padding-right: 0px;"),
-                      column(2,actionButton("indivBack", label="<"),
-                             style="margin-top:6%; padding-right: 0px;"),
-                      column(2,actionButton("indivFor", label=">"),
-                             style="padding-right: 0px; margin-top:6%;padding-left:0%; margin-left: 0px; padding-right: 0px;"),
-                      style="padding: 0 0 0 0; margin: -8% 0 0 0;"
-                      ) 
+                      column(1,actionButton("indivBack", label="<",width="80%"),
+                             style="margin-top:20px; padding: 0 0% 0 0%", offset=1),
+                      column(1,actionButton("indivFor", label=">",width="80%"),
+                             style="margin-top:20px; padding: 0 0% 0 0%"),
+                      style="padding: 0 0 0 0; margin: -5% 0 0 0;"
+               ) 
         ),
-        column(3,
-               column(6,"Min read coverage:"),
-               column(6,"Min allelic ratio:"),
-               column(6, sliderInput("coverageMin",
+        column(4,
+               column(12, 
+                    column(4,"Min read coverage:",style="margin-top:20px;font-weight:bold"),
+                    column(8, sliderInput("coverageMin",
                                      "",
                                      min = 0,
                                      max = 200,
                                      value = 1)),
-               column(6,sliderInput("minAlleleRatio",
+                    style="padding: 0 0 0 0; margin: -3% 0 0 0;"),
+               column(12,
+                      column(4,"Min allelic ratio:",style="margin-top:20px;font-weight:bold"),
+                      column(8,sliderInput("minAlleleRatio",
                                     "",
                                     min = 0,
                                     max = 1,
-                                    value = 0.2))),
-        column(1, checkboxInput("topTwo", label = "Keep only the top 2 most common Haplotypes", value = FALSE)),
-        column(1, actionButton("updateFilter", label="Update"), style="margin-top:3%; padding-right: 0px;"
-        ),
-        column(2, h5("Post Filtered Table:"),downloadButton('downloadData', 'Download'), align="center",
-               tags$style(type='text/css', "#downloadData { vertical-align: bottom; height: 40px;margin-top:10px;font-size:20px}"))
+                                    value = 0.2)),
+                      style="padding: 0 0 0 0; margin: -6% 0 0 0;")),
+        column(3,
+               column(4, actionButton("updateFilter", label="Update"), style="margin-top:5%; padding-right: 0px;"),
+               column(8, checkboxInput("topTwo", label = "Keep only the top 2 most common Haplotypes", value = FALSE)),
+               #column(12, "Keep only the top 2 most common Haplotypes",style="margin-top:10px;font-weight:bold"),
+               column(6, h5("Post Filtered Table:"),downloadButton('downloadData', 'Download'), align="center",
+                      offset=4,
+                      #style="padding: 0 0 0 0; margin: -3% 0 0 0;",
+                      tags$style(type='text/css', "#downloadData { vertical-align: bottom; height: 40px;margin-top:0px;font-size:20px}")),
+               style="padding: 0 0 0 0; margin: 0% 0 0 0;")
+      
       ))),
   #hr(),
   #selectInput("selectLocus", label = "", 
@@ -62,51 +78,51 @@ shinyUI(fluidPage(
   #           selected = 1),
   #column(12, h1("")),
   fluidRow( 
-  column(5,plotOutput("haplDensityPlot",height="auto",
-                      dblclick = dblclickOpts(
-                        id = "plotH_dblclick"),
-                      brush = brushOpts(
-                        id = "plotH_brush",
-                        direction = "y",
-                        resetOnNew = TRUE))),
-  column(2,plotOutput("numHapPlot",height="auto")),
-  column(2,plotOutput("fracIndivPlot",height="auto")),
-  column(3, plotOutput("readDepthPerLocus",height="auto"))),
+    column(5,plotOutput("haplDensityPlot",height="auto",
+                        dblclick = dblclickOpts(
+                          id = "plotH_dblclick"),
+                        brush = brushOpts(
+                          id = "plotH_brush",
+                          direction = "y",
+                          resetOnNew = TRUE))),
+    column(2,plotOutput("numHapPlot",height="auto")),
+    column(2,plotOutput("fracIndivPlot",height="auto")),
+    column(3, plotOutput("readDepthPerLocus",height="auto"))),
   
   column(12, h1("")),
   br(),
   fluidRow( 
-  column(5,plotOutput("AlleleRatioByIndiv",height="auto",
-                      dblclick = dblclickOpts(
-                        id = "plot_dblclick"),
-                      brush = brushOpts(
-                        id = "plot_brush",
-                        direction = "y",
-                        resetOnNew = TRUE))),
-  column(2,plotOutput("fracHaploPlot",height="auto")),
-  column(2,plotOutput("meanReadDepthByIndiv",height="auto")),
-  column(3,plotOutput("readDepthByIndiv",height="auto"))),
-#   column(4,plotOutput("distPlot", 
-#                       dblclick = dblclickOpts(
-#                         id = "plot1_dblclick"),
-#                       brush = brushOpts(
-#                         id = "plot1_brush",
-#                         direction = "y",
-#                         resetOnNew = TRUE))),
+    column(5,plotOutput("AlleleRatioByIndiv",height="auto",
+                        dblclick = dblclickOpts(
+                          id = "plot_dblclick"),
+                        brush = brushOpts(
+                          id = "plot_brush",
+                          direction = "y",
+                          resetOnNew = TRUE))),
+    column(2,plotOutput("fracHaploPlot",height="auto")),
+    column(2,plotOutput("meanReadDepthByIndiv",height="auto")),
+    column(3,plotOutput("readDepthByIndiv",height="auto"))),
+  #   column(4,plotOutput("distPlot", 
+  #                       dblclick = dblclickOpts(
+  #                         id = "plot1_dblclick"),
+  #                       brush = brushOpts(
+  #                         id = "plot1_brush",
+  #                         direction = "y",
+  #                         resetOnNew = TRUE))),
   column(4,plotOutput("hapSeq",height="auto")),
   column(4,plotOutput("histHap",height="auto")),
   column(4,plotOutput("PairWiseHap",height="auto")),
-fluidRow(
-  div(
-    style="padding: 10px; border-bottom: 8px solid white; background: white"
-  ),
-  column(5, DT::dataTableOutput('haploTbl')),#,style="border-right:2px solid grey;"),
-  column(5, DT::dataTableOutput('haploFreqTbl'), offset=2),
-  column(12),
-  div(
-    style="padding: 10px; border-bottom: 8px solid white; background: white"
-  ),
-  column(4, DT::dataTableOutput('haploSummary'))),
+  fluidRow(
+    div(
+      style="padding: 10px; border-bottom: 8px solid white; background: white"
+    ),
+    column(5, DT::dataTableOutput('haploTbl')),#,style="border-right:2px solid grey;"),
+    column(5, DT::dataTableOutput('haploFreqTbl'), offset=2),
+    column(12),
+    div(
+      style="padding: 10px; border-bottom: 8px solid white; background: white"
+    ),
+    column(4, DT::dataTableOutput('haploSummary'))),
   titlePanel("", windowTitle = "HapPLOType: a view to your haplotypes")
   
 ))
