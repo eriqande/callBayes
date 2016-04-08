@@ -21,7 +21,7 @@ shinyUI(fluidPage(
                       column(11, selectInput("selectDB", label ="","",selected = NULL, width="100%"),
                              style="padding-right: 0px; margin-top:0%;padding-left:10%; padding-right: 0px;"),
                       style="padding-right: 0px; margin-top:0%;padding-left:0%; padding-right: 0px;
-                      margin: -3% 0 0 0;"),
+                      margin: -1% 0 0 0;"),
                column(12, 
                       column(1,"Locus:",style="margin-top:20px;font-weight:bold"),
                       column(8,selectInput("selectLocus", label ="","ALL",selected = "ALL", width="90%"),
@@ -41,7 +41,7 @@ shinyUI(fluidPage(
                              style="margin-top:20px; padding: 0 0% 0 0%", offset=1),
                       column(1,actionButton("indivFor", label=">",width="80%"),
                              style="margin-top:20px; padding: 0 0% 0 0%"),
-                      style="padding: 0 0 0 0; margin: -5% 0 0 0;"
+                      style="padding: 0 0 0 0; margin: -3% 0 0 0;"
                ) 
         ),
         column(4,
@@ -52,7 +52,7 @@ shinyUI(fluidPage(
                                      min = 0,
                                      max = 200,
                                      value = 1)),
-                    style="padding: 0 0 0 0; margin: -3% 0 0 0;"),
+                    style="padding: 0 0 0 0; margin: -1% 0 0 0;"),
                column(12,
                       column(4,"Min allelic ratio:",style="margin-top:20px;font-weight:bold"),
                       column(8,sliderInput("minAlleleRatio",
@@ -61,14 +61,15 @@ shinyUI(fluidPage(
                                     max = 1,
                                     value = 0.2)),
                       style="padding: 0 0 0 0; margin: -6% 0 0 0;")),
-        column(3,
-               column(4, actionButton("updateFilter", label="Update"), style="margin-top:5%; padding-right: 0px;"),
-               column(8, checkboxInput("topTwo", label = "Keep only the top 2 most common Haplotypes", value = FALSE)),
+        column(1, actionButton("updateFilter", label="Update"), style="margin-top:5%; padding-right: 0px;"),
+        column(2,
+               #column(4, actionButton("updateFilter", label="Update"), style="margin-top:5%; padding-right: 0px;"),
+               column(12, checkboxInput("topTwo", label = "Keep only the top 2 most common Haplotypes", value = FALSE)),
                #column(12, "Keep only the top 2 most common Haplotypes",style="margin-top:10px;font-weight:bold"),
-               column(6, h5("Post Filtered Table:"),downloadButton('downloadData', 'Download'), align="center",
-                      offset=4,
+               column(12, h5("Post Filtered Table:"),downloadButton('downloadData', 'Download'), align="center",
+                      offset=0,
                       #style="padding: 0 0 0 0; margin: -3% 0 0 0;",
-                      tags$style(type='text/css', "#downloadData { vertical-align: bottom; height: 40px;margin-top:0px;font-size:20px}")),
+                      tags$style(type='text/css', "#downloadData { vertical-align:center; height: 40px;margin-top:0px;font-size:20px}")),
                style="padding: 0 0 0 0; margin: 0% 0 0 0;")
       
       ))),
