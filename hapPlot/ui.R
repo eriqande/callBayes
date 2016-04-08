@@ -61,7 +61,7 @@ shinyUI(fluidPage(
                                     max = 1,
                                     value = 0.2)),
                       style="padding: 0 0 0 0; margin: -6% 0 0 0;")),
-        column(1, actionButton("updateFilter", label="Update"), style="margin-top:5%; padding-right: 0px;"),
+        column(1, actionButton("updateFilter", label="Update"), style="margin-top:20px; padding-right: 0px;"),
         column(2,
                #column(4, actionButton("updateFilter", label="Update"), style="margin-top:5%; padding-right: 0px;"),
                column(12, checkboxInput("topTwo", label = "Keep only the top 2 most common Haplotypes", value = FALSE)),
