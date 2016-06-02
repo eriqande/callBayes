@@ -12,7 +12,7 @@ sub init(){
 	print STDERR "Require path specification for VCF file: -v\n" and exit if not defined $opt{v};
 	print STDERR "Require path specification for SAM file: -s\n" and exit if not defined $opt{s};
 	print STDERR "Require individual ID: -i\n" and exit if not defined $opt{i};
-	print STDERR "Require group ID: -g \n" and exit if not definted $opt{g};
+	print STDERR "Require group ID: -g \n" and exit if not defined $opt{g};
 }
 
 
@@ -66,7 +66,7 @@ while(<SAM>) {
 	next if /^\@/;
 	my @lines = split "\t";
 	my $id = $lines[2];
-	my $st_qpos = $lines[3]; // starting query position
+	my $st_qpos = $lines[3]; # starting query position
 	#skip if the alignment id is not found in the vcf
 	next if not defined $vcf->{$id};
 
