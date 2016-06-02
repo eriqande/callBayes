@@ -7,26 +7,28 @@ use Getopt::Std;
 use vars qw/ %opt /;
 
 sub init(){
-	getopts( "hv:s:i:", \%opt ) or usage();
+	getopts( "hv:s:i:g:", \%opt ) or usage();
 	usage() if $opt{h};
 	print STDERR "Require path specification for VCF file: -v\n" and exit if not defined $opt{v};
 	print STDERR "Require path specification for SAM file: -s\n" and exit if not defined $opt{s};
-	print STDERR "Require Individual ID: -i\n" and exit if not defined $opt{i};
+	print STDERR "Require individual ID: -i\n" and exit if not defined $opt{i};
+	print STDERR "Require group ID: -g \n" and exit if not definted $opt{g};
 }
 
 
 sub usage(){
 print STDERR << "EOF";
-    This program collect variant haplotype sites from SAM alignment file, and reports summary
+    This program gathers variant haplotype sites from SAM alignment file, and reports a summary file for those variant sites
  
     usage: $0 [-h] -v vcf_file -s sam_file -i int
 
      -h        : this (help) message
      -v file   : variant caller file - VCF format (!! assumed the position is sorted)
      -s file   : sequence alignment file - SAM format
-     -i int    : individual ID (integer value) 
+     -i int    : individual ID (integer value or unbroken string) 
+     -g str    : group ID (unbroken string)
 
-    example: $0 -v s1.vcf -s s1.sam -i 0
+    example: $0 -v s1.vcf -s s1.sam -i 0 -g sebastes
 
 EOF
         exit;
@@ -64,7 +66,7 @@ while(<SAM>) {
 	next if /^\@/;
 	my @lines = split "\t";
 	my $id = $lines[2];
-	my $st_qpos = $lines[3];
+	my $st_qpos = $lines[3]; // starting query position
 	#skip if the alignment id is not found in the vcf
 	next if not defined $vcf->{$id};
 
@@ -113,8 +115,11 @@ while(<SAM>) {
 
 for my $id (keys %{$hap}){
 	for my $h (keys %{$hap->{$id}}){
-		print join "\t", $opt{i},
-				$id, $h, $hap->{$id}->{$h}->{"ct"}, 
+		print join "\t", $opt{g},
+				 $opt{i},
+				$id, #locus id   
+				$h, # haplotype 
+				$hap->{$id}->{$h}->{"ct"},  # number of occurence for this haplotype
 				(join ",", @{$hap->{$id}->{$h}->{"logC"}}),
 				(join ",", @{$hap->{$id}->{$h}->{"logW"}}),
 				 "\n";
