@@ -372,8 +372,8 @@ shinyServer(function(input, output, session) {
     if(input$topTwo)
       haplo.filter <- haplo.filter %>% filter(rank <= 2)
     
-    #if (input$selectLocus != "ALL") 
-    #  haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
+    if (input$selectLocus != "ALL") 
+      haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
     
     if (input$selectIndiv != "ALL") 
       haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv) 
@@ -656,11 +656,11 @@ shinyServer(function(input, output, session) {
     if(dim(panelParam$indiv.label.tbl)[1]==0) return()
     haplo.filter <- right_join(haplo.filter, panelParam$indiv.label.tbl, by="id") 
     if(is.null(haplo.filter)) return()
-    haplo.filter[is.na(haplo.filter)]<- 0.0001
+    haplo.filter[is.na(haplo.filter)]<- 0.0#0.0001 if turn on log 10 scale
     
-    if (input$selectIndiv != "ALL") {
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
-    }
+    #if (input$selectIndiv != "ALL") {
+    #  haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+    #}
     
     ggplot(haplo.filter, aes(y=id, x=mean.depth)) +
       geom_point()+
@@ -671,7 +671,7 @@ shinyServer(function(input, output, session) {
             axis.ticks.y=element_blank(),
             panel.margin = unit(0, 'mm'))+
       #plot.margin = unit(c(0, 0, 0, 0), "mm"))+
-      scale_x_log10()+
+      #scale_x_log10()+
       ylim(indivPg$i)+
       coord_cartesian(ylim=ranges$y)
 
@@ -802,8 +802,11 @@ shinyServer(function(input, output, session) {
       ungroup() %>%
       mutate(frac = n/sum(n)) 
     
+    if(nrow(haplo.profile.frac)==0) return()
+
     haplo.split.profile <- sapply(1:nrow(haplo.profile.frac), function(i) {
       char.split <- strsplit(haplo.profile.frac[i,]$haplo, "")
+      #cat(file=stderr(), "character split_", unlist(char.split), "_----\n")
       n.char <- length(char.split[[1]])
       sapply(1:n.char, function(j) c(i, j, char.split[[1]][j], haplo.profile.frac[i,]$frac)) 
     }) %>% 
