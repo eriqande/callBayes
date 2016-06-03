@@ -30,15 +30,15 @@ shinyServer(function(input, output, session) {
   haplo.tbl.tem<- readRDS(select.file.tem)  %>% mutate(id = as.character(id))
   haplo.sum <- haplo.tbl.tem
   
-  n.locus <- length(unique(haplo.tbl.tem$locus))
-  n.indiv <- length(unique(haplo.tbl.tem$id))
-  locus.label.bare <- sort(unique(haplo.tbl.tem$locus))
-  locus.label.tbl <-  data.frame(locus =locus.label.bare, stringsAsFactors = F) %>% tbl_df()
-  locus.label <- c("ALL",locus.label.bare)
-
-  indiv.label.bare <- sort(unique(haplo.tbl.tem$id))
-  indiv.label.tbl <-  data.frame(id =indiv.label.bare, stringsAsFactors = F) %>% tbl_df()
-  indiv.label <- c("ALL", indiv.label.bare)
+#   n.locus <- length(unique(haplo.tbl.tem$locus))
+#   n.indiv <- length(unique(haplo.tbl.tem$id))
+#   locus.label.bare <- sort(unique(haplo.tbl.tem$locus))
+#   locus.label.tbl <-  data.frame(locus =locus.label.bare, stringsAsFactors = F) %>% tbl_df()
+#   locus.label <- c("ALL",locus.label.bare)
+# 
+#   indiv.label.bare <- sort(unique(haplo.tbl.tem$id))
+#   indiv.label.tbl <-  data.frame(id =indiv.label.bare, stringsAsFactors = F) %>% tbl_df()
+#   indiv.label <- c("ALL", indiv.label.bare)
 
   #haplo.sum<- readRDS("satrovirens01092016_panel1_haplo_filter.rds")
   #haplo.sum<- readRDS("satrovirens02102016_panel2_haplo_filter.rds")
@@ -50,10 +50,10 @@ shinyServer(function(input, output, session) {
   #   makeReactiveBinding("indiv.label.tbl")
   #   makeReactiveBinding("indiv.label")
   
-  makeReactiveBinding("haplo.sum")
+  #makeReactiveBinding("haplo.sum")
   
   update.Haplo.file <- reactive({
-    if(is.null(input$selectDB) || !file.exists(input$selectDB)) return()
+    if(input$selectDB == "" || is.null(input$selectDB) || !file.exists(input$selectDB)) return()
     #cat(file=stderr(), "select DB_", input$selectDB, "_----\n")
     readRDS(input$selectDB)  %>% mutate(id = as.character(id))
     #readRDS("satrovirens02102016_panel2_haplo_filter.rds")  %>% mutate(id = as.character(id))
@@ -76,6 +76,7 @@ shinyServer(function(input, output, session) {
   
   locusPg <- reactiveValues(l = NULL, width=NULL)
   indivPg <- reactiveValues(i = NULL, width=NULL)
+  groupPg <- reactiveValues(g = NULL, width = NULL)
   filterParam <- reactiveValues(minRead = 1, minAllele = 0.2)
   panelParam <- reactiveValues(n.locus = length(unique(haplo.tbl.tem$locus)),
                                n.indiv = length(unique(haplo.tbl.tem$id)),
@@ -85,17 +86,25 @@ shinyServer(function(input, output, session) {
                                indiv.label.tbl = data.frame(id =sort(unique(haplo.tbl.tem$id)), stringsAsFactors = F) %>% tbl_df(),
                                indiv.label = c("ALL",sort(unique(haplo.tbl.tem$id))),
                                indiv.label.bare = NULL,
-                               is.reject=NULL)
+                               is.reject=NULL,
+                               n.group = 0,
+                               group.label = NULL,
+                               group.label.tbl = NULL,
+                               group.label.bare = NULL)
   
   
   observeEvent(input$selectDB, {
-    cat(file=stderr(), "select DB_", input$selectDB, "_----\n")
-    if(is.null(haplo.sum)) return()
+    cat(file=stderr(), "select DB_", input$selectDB, "_","----\n")
+    if(is.null(haplo.sum) || input$selectDB == "" || is.null(input$selectDB)) return()
+    
     
     haplo.sum <- update.Haplo.file()
+
+    if (!"group" %in% colnames(haplo.sum)) haplo.sum <- cbind.data.frame("group"="unlabel",haplo.sum, stringsAsFactors=F) %>% tbl_df
     cat(file=stderr(), "preview_", head(haplo.sum,1) %>% unlist(), "_----\n")
     panelParam$n.locus <- length(unique(haplo.sum$locus))
     panelParam$n.indiv <- length(unique(haplo.sum$id))
+    
     locus.sorted <- sort(unique(haplo.sum$locus))
     panelParam$locus.label.tbl <-  data.frame(locus =locus.sorted, stringsAsFactors = F) %>% tbl_df()
     panelParam$locus.label <- c("ALL",locus.sorted)
@@ -106,11 +115,18 @@ shinyServer(function(input, output, session) {
     panelParam$indiv.label <- c("ALL",indiv.sorted)
     panelParam$indiv.label.bare <- indiv.sorted
     
+    group.sorted <- sort(unique(haplo.sum$group))
+    panelParam$group.label.tbl <-  data.frame(id =group.sorted, stringsAsFactors = F) %>% tbl_df()
+    panelParam$group.label <- c("ALL",group.sorted)
+    panelParam$group.label.bare <- group.sorted
+    
     panelParam$is.reject <- rep(0, panelParam$n.locus)
     
     updateSelectInput(session, "selectLocus", selected="ALL", choices=panelParam$locus.label)
     updateSelectInput(session, "selectIndiv", selected="ALL", choices=panelParam$indiv.label)
+    updateSelectInput(session, "selectGroup", selected="ALL", choices=panelParam$group.label)
     
+        
     end.indx<-min(15,panelParam$n.locus)
     locusPg$l <- panelParam$locus.label.bare[1:end.indx]
     rangesH$y <- c(0, length(locusPg$l)+1)
@@ -118,8 +134,6 @@ shinyServer(function(input, output, session) {
     end.indx<-min(15,panelParam$n.indiv)
     indivPg$i <- panelParam$indiv.label.bare[1:end.indx]
     ranges$y <- c(0, length(indivPg$i)+1)
-    
-    
     
   },priority = -3)
   
@@ -149,11 +163,43 @@ shinyServer(function(input, output, session) {
     updateSelectInput(session, "selectIndiv", selected=label)
   })
   
+  observeEvent(input$groupBack, {
+    indx <- isolate(which(panelParam$group.label==input$selectGroup))
+    label <- ifelse(indx > 1, panelParam$group.label[indx-1], panelParam$group.label[indx])
+    updateSelectInput(session, "selectGroup", selected=label)
+  })
+  observeEvent(input$groupFor, {
+    indx <- isolate(which(panelParam$group.label==input$selectGroup))
+    label <- ifelse(indx < length(panelParam$group.label), panelParam$group.label[indx+1], panelParam$group.label[indx])     
+    updateSelectInput(session, "selectGroup", selected=label)
+  })
+  
+  
   # reacting to the filter update button
   observeEvent(input$updateFilter, {
     filterParam$minRead <- input$coverageMin
     filterParam$minAllele <- input$minAlleleRatio
   })
+  
+  observeEvent(input$selectGroup, {
+    if(is.null(haplo.sum) || input$selectDB == "" || is.null(input$selectDB)) return()
+    indx <- isolate(which(panelParam$group.label.bare==input$selectGroup))
+    haplo.sum <- update.Haplo.file()
+    if (input$selectGroup != "ALL") haplo.sum <- haplo.sum %>% filter(group == input$selectGroup) 
+    
+    panelParam$n.indiv <- length(unique(haplo.sum$id))
+    
+    indiv.sorted <- sort(unique(haplo.sum$id))
+    panelParam$indiv.label.tbl <-  data.frame(id =indiv.sorted, stringsAsFactors = F) %>% tbl_df()
+    panelParam$indiv.label <- c("ALL",indiv.sorted)
+    panelParam$indiv.label.bare <- indiv.sorted
+    updateSelectInput(session, "selectIndiv", selected="ALL", choices=panelParam$indiv.label)
+
+    end.indx<-min(15,panelParam$n.indiv)
+    indivPg$i <- panelParam$indiv.label.bare[1:end.indx]
+    ranges$y <- c(0, length(indivPg$i)+1)
+  }, priority = -2)
+  
   
   observeEvent(input$selectLocus,{
     indx <- isolate(which(panelParam$locus.label.bare==input$selectLocus))
@@ -322,11 +368,12 @@ shinyServer(function(input, output, session) {
     haplo.filter <- haplo.sum %>% 
       filter(depth > filterParam$minRead, rank <= 2, allele.balance >= filterParam$minAllele) 
     
+    if (input$selectGroup != "ALL") haplo.filter <- haplo.filter %>% filter(group == input$selectGroup) 
     if (input$selectLocus != "ALL") haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
     if (input$selectIndiv != "ALL") haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv) 
     
     haplo.filter <- haplo.filter %>% 
-      group_by(locus, id) %>%
+      group_by(locus, id, group) %>%
       arrange(-depth) %>%
       summarise(haplotype.1 = ifelse(length(depth)==1, haplo[1], sort(haplo)[1]),
                 haplotype.2 = ifelse(length(depth)==1, haplo[1], sort(haplo)[2]),
@@ -363,7 +410,7 @@ shinyServer(function(input, output, session) {
   
   
   Filter.haplo.sum <- reactive({
-    haplo.sum <- update.Haplo.file()
+    #haplo.sum <- update.Haplo.file()
     if(is.null(haplo.sum)) return ()
     
     haplo.filter <- haplo.sum %>% 
@@ -372,20 +419,19 @@ shinyServer(function(input, output, session) {
     if(input$topTwo)
       haplo.filter <- haplo.filter %>% filter(rank <= 2)
     
-    if (input$selectLocus != "ALL") 
-      haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
-    
-    if (input$selectIndiv != "ALL") 
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv) 
-    
+    if (input$selectGroup != "ALL") haplo.filter <- haplo.filter %>% filter(group == input$selectGroup) 
+    if (input$selectLocus != "ALL") haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
+    if (input$selectIndiv != "ALL") haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv) 
+
     haplo.filter
   })
   
   Get.tbl.by.locus <- reactive({
     if (is.null(Filter.haplo.sum())) return()
     haplo.ct <- Filter.haplo.sum() %>%
-      group_by(locus, id) %>% 
-      summarise(tot.hapl = n(), tot.depth = sum(depth))     
+      group_by(locus, id, group) %>% 
+      summarise(tot.hapl = n(), tot.depth = sum(depth))    
+    
   })
   
   Get.tbl.by.id <- reactive({
@@ -400,12 +446,11 @@ shinyServer(function(input, output, session) {
   # BY LOCUS PANEL::  
   
   output$haplDensityPlot <- renderPlot({
-    if (is.null(input$selectLocus) || is.null(input$selectIndiv) || is.null(input$selectDB))
+    if (is.null(input$selectLocus) || is.null(input$selectIndiv) || input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()
     
     if(is.null(Get.tbl.by.locus())) return()
     if (dim(panelParam$locus.label.tbl)[1]==0) return()
-    
     
     haplo.tot.tbl <- Get.tbl.by.locus() %>% 
       group_by(locus, tot.hapl) %>%
@@ -414,14 +459,21 @@ shinyServer(function(input, output, session) {
       group_by(locus) %>%
       mutate(frac = ct/sum(ct))
     
+    #cat(file=stderr(), "is it updating_", unlist(haplo.tot.tbl[1,]), "_----\n")
+    
+    
     
     uniqH.perI.tbl <- right_join(haplo.tot.tbl, panelParam$locus.label.tbl, by="locus") 
     if(is.null(uniqH.perI.tbl)) return()
     uniqH.perI.tbl[is.na(uniqH.perI.tbl)]<- 0
     
+    #cat(file=stderr(), "is it moving :_ _----\n")
+    
+    
     if (input$selectLocus != "ALL") {
       uniqH.perI.tbl <- uniqH.perI.tbl %>% filter(locus == input$selectLocus)
     }
+    
     
     ggplot()+ 
       geom_point(data=uniqH.perI.tbl, aes(x = tot.hapl, y = locus, size=frac, color=frac))+
@@ -444,7 +496,7 @@ shinyServer(function(input, output, session) {
                                    1),250))
   
   output$numHapPlot <- renderPlot({
-    if (is.null(input$selectLocus) || is.null(input$selectIndiv))
+    if (is.null(input$selectLocus) || is.null(input$selectIndiv) || is.null(locusPg$l))
       return ()
     if(is.null(haplo.summaryTbl())) {return()}
     if(dim(panelParam$locus.label.tbl)[1]==0) return()
@@ -482,7 +534,7 @@ shinyServer(function(input, output, session) {
                                    1),250))
   
   output$fracIndivPlot <- renderPlot({
-    if (is.null(input$selectLocus) || is.null(input$selectIndiv))
+    if (is.null(input$selectLocus) || is.null(input$selectIndiv) || is.null(locusPg$l))
       return ()
     if(is.null(haplo.summaryTbl())) {return()}
     if(dim(panelParam$locus.label.tbl)[1]==0) return()
@@ -520,7 +572,7 @@ shinyServer(function(input, output, session) {
   
   output$readDepthPerLocus <- renderPlot({
     
-    if (is.null(input$selectLocus) || is.null(input$selectIndiv) || is.null(input$selectDB))
+    if (is.null(input$selectLocus) || is.null(input$selectIndiv) || input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()   
     
     if(is.null(Get.tbl.by.locus())) return()
@@ -558,24 +610,23 @@ shinyServer(function(input, output, session) {
   ## BY INDIVIDUAL PANEL::   
   
   output$AlleleRatioByIndiv <- renderPlot({
-    if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| is.null(input$selectDB))
+    if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()
     
-    haplo.sum <- update.Haplo.file()
-    if(is.null(haplo.sum)) return ()
-    
-    
     haplo.filter <- haplo.sum %>% 
-      filter(depth > filterParam$minRead, allele.balance >= filterParam$minAllele, rank <= 2) 
+      filter(depth > filterParam$minRead, allele.balance >= filterParam$minAllele) 
     
-    if (input$selectLocus != "ALL") haplo.filter <- haplo.filter %>% filter(locus== input$selectLocus)   
-    if (input$selectIndiv != "ALL") haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+    if(input$topTwo)
+      haplo.filter <- haplo.filter %>% filter(rank <= 2)
+    
+    if (input$selectLocus != "ALL") 
+      haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
     
     if (dim(haplo.filter)[1]==0 ) return ()
     if (dim(panelParam$indiv.label.tbl)[1]==0) return()
     
     haplo.filter <- haplo.filter %>% 
-      group_by(locus, id) %>% 
+      group_by(locus, id, group) %>% 
       summarise(depth.ratio = ifelse(length(depth)==1, 0, min(allele.balance)),
                 depth.first = max(depth))
     
@@ -583,13 +634,14 @@ shinyServer(function(input, output, session) {
     if(is.null(haplo.filter)) return()
     haplo.filter[is.na(haplo.filter)]<- 0
     
-    if (input$selectIndiv != "ALL") {
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
-    }
+    #if (input$selectIndiv != "ALL") {
+    #  haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+    #}
     
-    ggplot(data=haplo.filter, aes(x=depth.ratio, y=id,size=log(depth.first, 10)))+
+    ggplot(data=haplo.filter, aes(x=depth.ratio, y=id,size=log(depth.first, 10), color=group ))+
       geom_point(alpha=0.4)+
       scale_size_continuous(guide=FALSE)+#"Read Depth of the most common haplotype (log 10)")+
+      scale_color_discrete(guide=FALSE, drop=T, limits=levels(panelParam$group.label.bare))+
       theme_bw()+
       ylab("individual ID")+
       xlab ("depth ratio of the second common haplotype : first common haplotype")+
@@ -606,7 +658,7 @@ shinyServer(function(input, output, session) {
   
 
   output$fracHaploPlot <- renderPlot({
-    if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| is.null(input$selectDB))
+    if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()
     if(is.null(haplo.summaryTbl())) {return()}
     
@@ -619,9 +671,9 @@ shinyServer(function(input, output, session) {
     
     haplo.filter[is.na(haplo.filter)]<- 0
     
-    if (input$selectIndiv != "ALL") {
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
-    }
+    #if (input$selectIndiv != "ALL") {
+    #  haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+    #}
     
     ggplot(haplo.filter, aes(x=f, y=id, color=f))+
       geom_point()+
@@ -643,7 +695,7 @@ shinyServer(function(input, output, session) {
                                    1),250))
   
   output$meanReadDepthByIndiv <- renderPlot({
-    if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| is.null(input$selectDB))
+    if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()
     
     if(is.null(Get.tbl.by.id())) return()
@@ -682,7 +734,7 @@ shinyServer(function(input, output, session) {
                                    1),250))
   
   output$readDepthByIndiv <- renderPlot({
-    if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| is.null(input$selectDB))
+    if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()
     if (is.null(Filter.haplo.sum())) return()
     if(dim(panelParam$indiv.label.tbl)[1]==0) return()
@@ -693,9 +745,9 @@ shinyServer(function(input, output, session) {
     if(is.null(haplo.filter)) return()
     haplo.filter[is.na(haplo.filter)]<- 0
     
-    if (input$selectIndiv != "ALL") {
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
-    }
+  #  if (input$selectIndiv != "ALL") {
+  #    haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+  #  }
     
     ggplot(haplo.filter, aes(x=id, y=depth, group=id)) +
       xlab("")+
@@ -780,21 +832,10 @@ shinyServer(function(input, output, session) {
   
   #ABOUT HAPLOTYPE distribution panel  
   output$hapSeq <- renderPlot({
-    if (is.null(input$selectLocus) || input$selectLocus == "ALL" || is.null(input$selectIndiv)|| is.null(input$selectDB))
-      return ()   
+    if (is.null(input$selectLocus) || input$selectLocus == "ALL" || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
+      return ()
     
-    haplo.sum <- update.Haplo.file()
-    if(is.null(haplo.sum)) return ()
-    
-    
-    haplo.filter <- haplo.sum %>% 
-      filter(depth > filterParam$minRead, locus == input$selectLocus, allele.balance >= filterParam$minAllele) 
-    
-    if(input$topTwo)
-      haplo.filter <- haplo.filter %>% filter(rank <= 2)
-    
-    if (input$selectIndiv != "ALL") 
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv) 
+    haplo.filter <- Filter.haplo.sum()
     
     haplo.profile.frac <- haplo.filter %>%
       group_by(haplo) %>%
@@ -841,7 +882,7 @@ shinyServer(function(input, output, session) {
   
   output$histHap <- renderPlot({
     
-    if (is.null(input$selectLocus) || input$selectLocus == "ALL" || is.null(input$selectIndiv)|| is.null(input$selectDB))
+    if (is.null(input$selectLocus) || input$selectLocus == "ALL" || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()   
     
     #     haplo.sum <- update.Haplo.file()
@@ -881,7 +922,7 @@ shinyServer(function(input, output, session) {
   
   
   output$PairWiseHap <- renderPlot({
-    if (is.null(input$selectLocus) || input$selectLocus == "ALL" || is.null(input$selectIndiv)|| is.null(input$selectDB))
+    if (is.null(input$selectLocus) || input$selectLocus == "ALL" || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()   
     
     haplo.sum <- update.Haplo.file()
@@ -894,6 +935,9 @@ shinyServer(function(input, output, session) {
     #if(input$topTwo) 
     haplo.filter <- haplo.filter %>% filter(rank <= 2)
     if (input$selectIndiv != "ALL") haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv) 
+    if (input$selectGroup != "ALL") haplo.filter <- haplo.filter %>% filter(group == input$selectGroup) 
+    
+    
     
     haplo.filter <- haplo.filter %>% 
       group_by(locus, id) %>%
@@ -958,7 +1002,7 @@ shinyServer(function(input, output, session) {
   })
   
 #   output$haploTbl <- DT::renderDataTable({
-#     if( is.null(input$selectDB)) return()
+#     if( input$selectDB == "" || is.null(input$selectDB)) return()
 #     haplo.sum <- update.Haplo.file()
 #     if(is.null(haplo.sum)) return ()
 #     
@@ -985,7 +1029,7 @@ shinyServer(function(input, output, session) {
 #   
 #   
 #   output$haploFreqTbl <- DT::renderDataTable({
-#     if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| is.null(input$selectDB))
+#     if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB))
 #       return ()   
 #     
 #     if (is.null(haplo.freqTbl())) 
@@ -1000,7 +1044,7 @@ shinyServer(function(input, output, session) {
 #   })
 #   
 #   output$haploSummary <- DT::renderDataTable({
-#     if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| is.null(input$selectDB))
+#     if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB))
 #       return ()   
 #     
 #     if (is.null(haplo.summaryTbl())) 
