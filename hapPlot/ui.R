@@ -118,16 +118,16 @@ shinyUI(fluidPage(
                   style="margin-top:0px; padding: 0 0% 0 0%", offset=0),
            column(1,actionButton("indivFor", label=">", width="98%"),
                   style="margin-top:0px;padding:0 0% 0 0%; margin-left: 0px;")),
-    column(3, column(12, 
+    column(4, column(12, 
                      column(2,h6("Display: ")),
                      column(4,selectInput("indivPerDisplay", label = NULL, 
                                           choices = list("15"=15,
                                                          "30"=30,
                                                          "60"=60,
                                                          "ALL"=100),
-                                          selected=15), offset=1),
+                                          selected=15), offset=0),
                      column(5,h6("indiv per slide") ))),
-    column(3, column(12, 
+    column(4, column(12, 
                      column(1,h6("Page:")),
                      column(4,numericInput("indivPage", label = NULL, value = 1, min=1, step=1),offset=1),
                      column(1, h6(" of ")),
@@ -171,16 +171,16 @@ shinyUI(fluidPage(
            #                            column(1,actionButton("locusFor", label=">", width="80%"),
            #                                   style="margin-top:0px;padding:0 0% 0 0%; margin-left: 0px;"))),
            #style="padding-right: 0px;padding-left:0px; padding-right: 0px;margin: -3% 0 0 0;")),
-           column(3, column(12, 
+           column(4, column(12, 
                             column(2,h6("Display: ")),
                             column(4,selectInput("locusPerDisplay", label = NULL, 
                                                  choices = list("15"=15,
                                                                 "30"=30,
                                                                 "60"=60,
                                                                 "ALL"=100),
-                                                 selected=15), offset=1),
+                                                 selected=15), offset=0),
                             column(5,h6("locus per slide") ))),
-           column(3, column(12, 
+           column(4, column(12, 
                             column(1,h6("Page:")),
                             column(4,numericInput("locusPage", label = NULL, value = 1, min=1, step=1),offset=1),
                             column(1, h6(" of ")),
@@ -199,6 +199,14 @@ shinyUI(fluidPage(
     column(2,plotOutput("numHapPlot",height="auto")),
     column(2,plotOutput("fracIndivPlot",height="auto")),
     column(3, plotOutput("readDepthPerLocus",height="auto"))),
+  
+  #locus assessement panel
+  
+  
+  
+  
+  
+  
   fluidRow(column(4,  column(3, h5("Locus:"), offset=0),
                   column(9, h5(textOutput("locusSelect1")), style="margin-left: 0px; color:grey")),
            column(3, column(12, 
@@ -211,19 +219,37 @@ shinyUI(fluidPage(
            style="border-bottom: 2px dashed #d9d9d9; border-top: 2px dashed #d9d9d9; margin-bottom: 5px; margin-top: 10px; padding-bottom: 15px; padding-top:15px"),
   fluidRow(column(4,plotOutput("hapSeq",height="auto")),
            column(4,plotOutput("histHap",height="auto")),
-           column(4,plotOutput("PairWiseHap",height="auto"))),
+           column(4,plotOutput("PairWiseHap",height="auto")),
+           column(12, plotOutput("hapByGroupPlot",height="auto"))),
   #   fluidRow(
   #     div(
   #       style="padding: 10px; border-bottom: 8px solid white; background: white"
   #     ),
+  
+  # group label panel
+  fluidRow(
+    column(4, column(3,h5("Group:")),
+           column(9, h5(textOutput("groupSelect")), style="margin-left: 0px; color:grey")),
+    style="border-bottom: 2px dashed #d9d9d9;  margin-bottom: 10px; padding-top:5px"),
+  fluidRow( 
+    column(3,plotOutput("nIndivByGroupPlot",height="auto")),
+    column(3,plotOutput("fIndivByGroupPlot",height="auto")),
+    column(3,plotOutput("nLociByGroupPlot",height="auto")),
+    column(3, plotOutput("fLociByGroupPlot",height="auto"))),
+  
+  
+  # table panel
+  
   fluidRow(column(4,  
                   column(5, h5("Select Table:"), offset=0),
-                  column(7, selectInput("selectTbl", label ="","ALL",selected = "ALL"),
+                  column(7, selectInput("selectTbl", label ="",c("observed haplotype","refined haplotype","SNP frequency"),selected = "refined haplotype"),
                          style="padding-right: 0px; margin-top:-20px;margin-bottom:-20px;padding-left:0%; padding-right: 0px;")),
            column(3, column(12,
                             column(6, actionButton('updateTable', 'Update')),
                             column(6,downloadButton('downloadData', 'Download')))),
            style="border-bottom: 2px dashed #d9d9d9; border-top: 2px dashed #d9d9d9; margin-bottom: 5px; margin-top: 10px; padding-bottom: 15px; padding-top:15px"),
+  
+  
   
   column(12, DT::dataTableOutput('haploTbl')),#,style="border-right:2px solid grey;"),
   #column(5, DT::dataTableOutput('haploFreqTbl'), offset=2),
