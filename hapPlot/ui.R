@@ -242,7 +242,7 @@ shinyUI(fluidPage(
   
   fluidRow(column(4,  
                   column(5, h5("Select Table:"), offset=0),
-                  column(7, selectInput("selectTbl", label ="",c("observed haplotype","refined haplotype","SNP frequency"),selected = "refined haplotype"),
+                  column(7, selectInput("selectTbl", label ="",c("observed variants","reported indiv haplotype","SNP report"),selected = "reported indiv haplotype"),
                          style="padding-right: 0px; margin-top:-20px;margin-bottom:-20px;padding-left:0%; padding-right: 0px;")),
            column(3, column(12,
                             column(6, actionButton('updateTable', 'Update')),
