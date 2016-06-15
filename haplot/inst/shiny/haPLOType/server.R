@@ -50,7 +50,7 @@ shinyServer(function(input, output, session) {
   #   makeReactiveBinding("indiv.label.tbl")
   #   makeReactiveBinding("indiv.label")
   
-  #makeReactiveBinding("haplo.sum")
+  makeReactiveBinding("haplo.sum")
   
   update.Haplo.file <- reactive({
     if(input$selectDB == "" || is.null(input$selectDB) || !file.exists(input$selectDB)) return()
@@ -417,7 +417,8 @@ shinyServer(function(input, output, session) {
   
   
   Filter.haplo.sum <- reactive({
-    #haplo.sum <- update.Haplo.file()
+    haplo.sum <- update.Haplo.file()
+    
     if(is.null(haplo.sum)) return ()
     
     haplo.filter <- haplo.sum %>% 
@@ -622,6 +623,8 @@ shinyServer(function(input, output, session) {
   output$AlleleRatioByIndiv <- renderPlot({
     if (is.null(input$selectLocus) || is.null(input$selectIndiv)|| input$selectDB == "" || is.null(input$selectDB) || is.null(locusPg$l) )
       return ()
+    
+    haplo.sum <- update.Haplo.file()
     
     haplo.filter <- haplo.sum %>% 
       filter(depth > filterParam$minRead, allele.balance >= filterParam$minAllele) 
