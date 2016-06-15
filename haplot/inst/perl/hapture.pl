@@ -2,11 +2,15 @@
 use warnings;
 use strict;
 use Getopt::Std;
-#use File::Basename;
-#use lib dirname (__FILE__);
-use Bio::Cigar;  
+use Bio::Cigar;  # Cpan this !!!!
 
 use vars qw/ %opt /;
+
+# this program is subsequently packed via App::FatPacker 
+# see http://perltricks.com/article/58/2014/1/5/The-easy-way-to-build-stand-alone-Perl-apps/
+# fatpacker pack hapture.pl > hapture
+# either perl hapture or -run as executable by chmod 755
+
 
 sub init(){
 	getopts( "hv:s:i:g:", \%opt ) or usage();
