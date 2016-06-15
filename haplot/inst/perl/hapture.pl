@@ -1,9 +1,10 @@
+#!/usr/bin/env perl
 use warnings;
 use strict;
 use Getopt::Std;
-use File::Basename;
-use lib dirname (__FILE__);
-use Cigar;  
+#use File::Basename;
+#use lib dirname (__FILE__);
+use Bio::Cigar;  
 
 use vars qw/ %opt /;
 
@@ -145,4 +146,4 @@ for my $id (keys %{$hap}){
 	}
 }
 
-----------------------------------------
+#----------------------------------------
