@@ -20,72 +20,42 @@ shinyServer(function(input, output, session) {
   dirFiles <- list.files()
   rds.file <- grep(".rds", dirFiles)
 
-  if(length(rds.file)==0){
-    exit()
-  }
-
+  if(length(rds.file)>0){
   select.file.tem <- dirFiles[rds.file[1]]
   updateSelectInput(session, "selectDB", selected=select.file.tem, choices=dirFiles[rds.file])
+  haplo.sum<- readRDS(select.file.tem)  %>% mutate(id = as.character(id))
+  colnames(haplo.sum) <- c("id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "allele.balance","rank")
+  }
+  else {
+    haplo.sum <- NULL
+  }
 
-  haplo.tbl.tem<- readRDS(select.file.tem)  %>% mutate(id = as.character(id))
-  haplo.sum <- haplo.tbl.tem
 
-  #   n.locus <- length(unique(haplo.tbl.tem$locus))
-  #   n.indiv <- length(unique(haplo.tbl.tem$id))
-  #   locus.label.bare <- sort(unique(haplo.tbl.tem$locus))
-  #   locus.label.tbl <-  data.frame(locus =locus.label.bare, stringsAsFactors = F) %>% tbl_df()
-  #   locus.label <- c("ALL",locus.label.bare)
-  #
-  #   indiv.label.bare <- sort(unique(haplo.tbl.tem$id))
-  #   indiv.label.tbl <-  data.frame(id =indiv.label.bare, stringsAsFactors = F) %>% tbl_df()
-  #   indiv.label <- c("ALL", indiv.label.bare)
-
-  #haplo.sum<- readRDS("satrovirens01092016_panel1_haplo_filter.rds")
-  #haplo.sum<- readRDS("satrovirens02102016_panel2_haplo_filter.rds")
-  #colnames(haplo.sum) <- c("id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "allele.balance","rank")
-  #   makeReactiveBinding("n.locus")
-  #   makeReactiveBinding("n.indiv")
-  #   makeReactiveBinding("locus.label.tbl")
-  #   makeReactiveBinding("locus.label")
-  #   makeReactiveBinding("indiv.label.tbl")
-  #   makeReactiveBinding("indiv.label")
-
-  makeReactiveBinding("haplo.sum")
+  #makeReactiveBinding("haplo.sum")
 
   update.Haplo.file <- reactive({
     if(input$selectDB == "" || is.null(input$selectDB) || !file.exists(input$selectDB)) return()
     #cat(file=stderr(), "select DB_", input$selectDB, "_----\n")
     readRDS(input$selectDB)  %>% mutate(id = as.character(id))
-    #readRDS("satrovirens02102016_panel2_haplo_filter.rds")  %>% mutate(id = as.character(id))
 
-    #return(haplo.tbl.tem)
   })
 
 
-
-
-  #     n.locus <- length(unique(haplo.sum$locus))
-  #     n.indiv <- length(unique(haplo.sum$id))
-  #     locus.label.tbl <-  data.frame(locus =sort(unique(haplo.sum$locus)), stringsAsFactors = F) %>% tbl_df()
-  #     locus.label <- c("ALL",sort(unique(haplo.sum$locus)))
-  #     indiv.label.tbl <-  data.frame(id =sort(unique(haplo.sum$id)), stringsAsFactors = F) %>% tbl_df()
-  #     indiv.label <- c("ALL",sort(unique(haplo.sum$id)))
-
   ranges <- reactiveValues(y = NULL, x = NULL)
   rangesH <- reactiveValues(y = NULL)
-
   locusPg <- reactiveValues(l = NULL, width=NULL)
   indivPg <- reactiveValues(i = NULL, width=NULL)
   groupPg <- reactiveValues(g = NULL, width =1)
   hapPg <- reactiveValues(width=NULL)
+
   filterParam <- reactiveValues(minRead = 1, minAllele = 0.2)
-  panelParam <- reactiveValues(n.locus = length(unique(haplo.tbl.tem$locus)),
-                               n.indiv = length(unique(haplo.tbl.tem$id)),
-                               locus.label.tbl = data.frame(locus =sort(unique(haplo.tbl.tem$locus)), stringsAsFactors = F) %>% tbl_df(),
-                               locus.label = c("ALL",sort(unique(haplo.tbl.tem$locus))),
+  panelParam <- reactiveValues(n.locus = NULL,
+                               n.indiv = NULL,
+                               locus.label.tbl = NULL,
+                               locus.label = NULL,
                                locus.label.bare =NULL,
-                               indiv.label.tbl = data.frame(id =sort(unique(haplo.tbl.tem$id)), stringsAsFactors = F) %>% tbl_df(),
-                               indiv.label = c("ALL",sort(unique(haplo.tbl.tem$id))),
+                               indiv.label.tbl = NULL,
+                               indiv.label = NULL,
                                indiv.label.bare = NULL,
                                is.reject=NULL,
                                n.group = 0,
