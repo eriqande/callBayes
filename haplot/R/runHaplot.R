@@ -10,98 +10,94 @@ runHaplotype <- function() {
     stop("Could not find shiny directory. Try re-installing `mypackage`.", call. = FALSE)
   }
 
-  runApp(appDir, display.mode = "normal")
+  shiny::runApp(appDir, display.mode = "normal")
 }
 
 
 #' Extract haplotype from alignment reads.
 #'
-#' The function \code{haplot} extracts haplotype from sequence alignment files through perl script 'hapture' and returns a summary table of the read depth and read quality associate with haplotype.
+#' The function \code{haplot} extracts haplotype from sequence alignment files through perl script \code{hapture} and returns a summary table of the read depth and read quality associate with haplotype.
 #'
 #' @param run.label character vector. Run label to be used to display in haPLOType. Required
-#' @param sam.path string. Directory path containings all sequence alignment files (SAM). Required
-#' @param label.path string. Path to label file. This customized label file is a tab-separate file that contains entries of SAM file name, individual ID, and group label. Required
-#' @param vcf.path string. Path to vcf file. Required
-#' @param out.path string. Optional. If not specified, the intermediate files are created under \code{sam.path}, assuming that directory is granted for written permission.
+#' @param sam.path string. Directory path folder containing all sequence alignment files (SAM). Required
+#' @param label.path string. Label file path. This customized label file is a tab-separate file that contains entries of SAM file name, individual ID, and group label. Required
+#' @param vcf.path string. VCF file path. Required
+#' @param out.path string. Optional. If not specified, the intermediate files are created under \code{sam.path}, with the assumption that directory is granted for written permission.
+#' @param add.filter boolean. Optional. If true, this removes any haplotype with unknown and deletion alignment characters i.e. "*" and "_", removes any locus with large number of haplotypes ( # > 40) , and remove any locus with fewer than half of the total individuals.
 #' @export
 #' @examples
-#' runHaplot("example 1", sam.path="data", label.path="data/label.txt", vcf.path="data/vcf.txt")
+#' runHaplot(run.label="example 1", sam.path="data/satro_sample", label.path="data/satro_sample/seb11_12_ssp.txt", vcf.path="data/satro_sample/sebastes11_noMNP_noComplex_noPriors.vcf")
 runHaplot <- function(run.label, sam.path, label.path, vcf.path,
-  out.path=sam.path){
+  out.path=sam.path,
+  add.filter=FALSE){
 
 
   run.label <- gsub(" +","_",run.label)
-
   haptureDir <- system.file("perl", "hapture", package = "haplot")
+  shinyDir <- system.file("shiny", "haPLOType", package = "haplot")
+
 
 
   # Need to check whether all path and files exist
+  if(!file.exists(paste0(sam.path))) stop("the path for 'sam.path' - ", sam.path, " does not exist")
+  if(!file.exists(paste0(label.path))) stop("the path for 'label.path' - ", label.path, " does not exist")
+  if(!file.exists(paste0(vcf.path))) stop("the path for 'vcf.path' - ", vcf.path, " does not exist")
+  if(!file.exists(paste0(out.path))) stop("the path for 'out.path' - ", out.path, " does not exist")
 
-  bash.cmd <- paste0("while IFS=$'\t' read -r -a line; do echo ",
+  # the perl script hapture should display any warning if the label field contains any missing or invalid elements
+
+
+  if(!file.exists(paste0(out.path,"/intermed"))) dir.create(paste0(out.path,"/intermed"))
+
+  bash.cmd <- paste0("while IFS=$'\\t' read -r -a line; do echo ",
     "\"perl ", haptureDir,
     " -v ", vcf.path, " ",
     " -s ", sam.path, "/${line[0]} ",
     " -i ${line[1]} ",
     " -g ${line[2]} ", " > ",
-    out.path, "/", run.label, "_", "${line[1]}.summary &\"",
+    out.path, "/intermed/", run.label, "_", "${line[1]}.summary &\"",
     "; done < ", label.path ,
-    " > ", out.path, "/", "run_all.sh")
-
+    " > ", out.path, "/", "run_all.sh","\n",
+    "echo \" wait; exit 0; \" ",
+    " >> ", out.path, "/run_all.sh")
 
   system(bash.cmd)
-  cat("Extracting Haplotyping ...")
+  system(paste0("bash ",out.path,"/run_all.sh"))
 
+  summary.tbl<-paste0(out.path,"/intermed/all.summary")
 
-   -v ${FOLDPATH}/chinook_noMNP_noComplex_noPriors.vcf -s ${FOLDPATH}/ch_flashed_${line[1]}_aln.sam  -i ${line[1]} -g '${line[0]}' > ${FOLDPATH}/chinook_panel1_${line[1]}.summary&";
-  done < /home/biopipe/Genetics_Lab_Data/GTseq/chinook05172016/map/ch_microhaps_pops.txt > run_all.sh
-  bash run_all.sh
+  concat.file <- paste0("cat ",out.path, "/intermed/", run.label, "_", "*.summary",">",summary.tbl)
+  system(concat.file)
 
-
-  system("perl ${SRCPATH}/hap_recap.pl -v ${FOLDPATH}/chinook_noMNP_noComplex_noPriors.vcf -s ${FOLDPATH}/ch_flashed_${line[1]}_aln.sam  -i ${line[1]} -g '${line[0]}' > ${FOLDPATH}/chinook_panel1_${line[1]}.summary&")
-
-
-  # paste0
-  system("cat ...")
-
-
-  summary.table.name<-"/home/biopipe/Genetics_Lab_Data/GTseq/chinook05172016/map/chinook_panel1.summary"
-  run.label <- "chinook_05_17_2016"
-
-
-
-  haplo.sum <- read.table(summary.table.name, stringsAsFactors = FALSE, sep="\t") %>%
-    tbl_df
+  haplo.sum <- read.table(summary.tbl, stringsAsFactors = FALSE, sep="\t") %>% dplyr::tbl_df()
 
   colnames(haplo.sum) <- c("group", "id", "locus", "haplo", "depth", "logP.call", "logP.miscall")
 
-
-  # clean the file: remove any haplotype with alignment character ("*" - unk, keep "_" - del)  grepl("[_|*]") &
-  # remove any loci that does less than half of total individual
-  # post remove any loci with highly variant haplotypes > 40
-
   num.id <- length(unique(haplo.sum$id))
 
-  haplo.cleanup <- haplo.sum %>%
-    #filter(grepl("[*]", haplo)) %>%
-    group_by(locus, id) %>%
-    mutate(n.haplo.per.indiv=n()) %>%
-    ungroup() %>%
-    group_by(locus) %>%
-    mutate(n.indiv.per.locus = length(unique(id)), max.uniq.hapl=max(n.haplo.per.indiv)) %>%
-    ungroup() %>%
-    filter(n.indiv.per.locus > num.id/2, max.uniq.hapl < 40)  %>%
-    select(group, id, locus, haplo, depth, logP.call, logP.miscall)
+  if (add.filter) {
+
+    haplo.cleanup <- haplo.sum %>%
+      dplyr::filter(grepl("[*]", haplo)) %>%
+      dplyr::group_by(locus, id) %>%
+      dplyr::mutate(n.haplo.per.indiv=n()) %>%
+      dplyr::ungroup() %>%
+      dplyr::group_by(locus) %>%
+      dplyr::mutate(n.indiv.per.locus = length(unique(id)), max.uniq.hapl=max(n.haplo.per.indiv)) %>%
+      dplyr::ungroup() %>%
+      dplyr::filter(n.indiv.per.locus > num.id/2, max.uniq.hapl < 40)  %>%
+      dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall) }
+  else {
+    haplo.cleanup <- haplo.sum}
 
 
   haplo.add.balance <- haplo.cleanup %>%
-    group_by(locus,id) %>%
-    arrange(-depth) %>%
-    mutate(allele.balance = depth/depth[1], rank=row_number() ) %>%
-    ungroup()
+    dplyr::group_by(locus,id) %>%
+    dplyr::arrange(-depth) %>%
+    dplyr::mutate(allele.balance = depth/depth[1], rank=row_number() ) %>%
+    dplyr::ungroup()
 
-  saveRDS(haplo.add.balance, paste0(run.label,".rds"))
+  saveRDS(haplo.add.balance, paste0(out.path, "/",run.label,".rds"))
 
-  system("cp ...")
-
-
+  system(paste0("cp ", out.path, "/",run.label,".rds ", shinyDir, "/",run.label,".rds ") )
 }

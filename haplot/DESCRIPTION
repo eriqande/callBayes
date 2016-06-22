@@ -1,5 +1,5 @@
 Package: haplot
-Type: package
+Type: Package
 Title: short read variant visualizer
 Version: 0.1.0
 Authors@R: person("Thomas", "Ng", email = "tngthomasng@gmail.com", role = c("aut", "cre"))
