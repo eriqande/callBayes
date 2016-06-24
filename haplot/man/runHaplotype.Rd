@@ -2,12 +2,12 @@
 % Please edit documentation in R/runHaplot.R
 \name{runHaplotype}
 \alias{runHaplotype}
-\title{Runs Haplotype Plot.}
+\title{Run Haplotype Plot.}
 \usage{
 runHaplotype()
 }
 \description{
-Runs Haplotype shiny plot
+Run Haplotype shiny plot
 }
 \examples{
 runHaplotype()

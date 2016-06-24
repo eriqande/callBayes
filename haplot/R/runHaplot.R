@@ -26,7 +26,11 @@ runHaplotype <- function() {
 #' @param add.filter boolean. Optional. If true, this removes any haplotype with unknown and deletion alignment characters i.e. "*" and "_", removes any locus with large number of haplotypes ( # > 40) , and remove any locus with fewer than half of the total individuals.
 #' @export
 #' @examples
-#' runHaplot(run.label="example 1", sam.path="data/satro_sample", label.path="data/satro_sample/seb11_12_ssp.txt", vcf.path="data/satro_sample/sebastes11_noMNP_noComplex_noPriors.vcf")
+#' run.label<-"example 1"
+#' sam.path<-"data/satro_sample"
+#' label.path <- "data/satro_sample/seb11_12_ssp.txt"
+#' vcf.path <- "data/satro_sample/sebastes.vcf"
+#' runHaplot(run.label, sam.path, label.path, vcf.path)
 runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   out.path=sam.path,
   add.filter=FALSE){
@@ -47,22 +51,38 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   # the perl script hapture should display any warning if the label field contains any missing or invalid elements
 
 
+  system(paste0("rm -f ", out.path, "/runHapture.sh"))
+  if(file.exists(paste0(out.path,"/intermed"))) system(paste0("rm -f ", out.path, "/intermed/", run.label, "_", "*.summary;"))
   if(!file.exists(paste0(out.path,"/intermed"))) dir.create(paste0(out.path,"/intermed"))
 
-  bash.cmd <- paste0("while IFS=$'\\t' read -r -a line; do echo ",
-    "\"perl ", haptureDir,
-    " -v ", vcf.path, " ",
-    " -s ", sam.path, "/${line[0]} ",
-    " -i ${line[1]} ",
-    " -g ${line[2]} ", " > ",
-    out.path, "/intermed/", run.label, "_", "${line[1]}.summary &\"",
-    "; done < ", label.path ,
-    " > ", out.path, "/", "run_all.sh","\n",
-    "echo \" wait; exit 0; \" ",
-    " >> ", out.path, "/run_all.sh")
+  # catch any problem in label file
+  read.label <- tryCatch(read.table(label.path), error = function(c) {
+    c$message <- paste0(c$message, " (in ", label.path , ")")
+    stop(c)
+  })
+  if (dim(read.label)[2]<3) stop(label.path, "contains less than 3 columns.")
 
-  system(bash.cmd)
-  system(paste0("bash ",out.path,"/run_all.sh"))
+
+  garb <- apply(read.label, 1, function(line) {
+    if(!file.exists(paste0(sam.path,"/",line[1]))) stop("the sam file, ", sam.path,"/",line[1], ", does not exist")
+    run.perl.script <- paste0("perl ", haptureDir,
+      " -v ", vcf.path, " ",
+      " -s ", sam.path, "/", line[1],
+      " -i ", line[2],
+      " -g ", line[3], " > ",
+      out.path, "/intermed/", run.label, "_", line[2],".summary &");
+    write(run.perl.script,
+      file=paste0(out.path, "/runHapture.sh"),
+      append=T)
+  })
+
+
+  write(paste0("wait; exit 0;"),
+    file=paste0(out.path, "/runHapture.sh"),
+    append=T)
+
+  cat("...running Hapture.pl to extract haplotype information")
+  system(paste0("bash ",out.path,"/runHapture.sh"))
 
   summary.tbl<-paste0(out.path,"/intermed/all.summary")
 
@@ -74,6 +94,8 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   colnames(haplo.sum) <- c("group", "id", "locus", "haplo", "depth", "logP.call", "logP.miscall")
 
   num.id <- length(unique(haplo.sum$id))
+
+  cat(paste0("\n...Prepping RDS file : ",out.path, "/",run.label,".rds"))
 
   if (add.filter) {
 
@@ -88,7 +110,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
       dplyr::filter(n.indiv.per.locus > num.id/2, max.uniq.hapl < 40)  %>%
       dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall) }
   else {
-    haplo.cleanup <- haplo.sum}
+    haplo.cleanup <- haplo.sum %>% dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall)}
 
 
   haplo.add.balance <- haplo.cleanup %>%
