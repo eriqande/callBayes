@@ -2,11 +2,11 @@
 use warnings;
 use strict;
 use Getopt::Std;
-use Bio::Cigar;  # Cpan this !!!!
+use Bio::Cigar;  # Cpan this if you want to run this script !!
 
 use vars qw/ %opt /;
 
-# this program is subsequently packed via App::FatPacker 
+# this program is subsequently packed via App::FatPacker
 # see http://perltricks.com/article/58/2014/1/5/The-easy-way-to-build-stand-alone-Perl-apps/
 # fatpacker pack hapture.pl > hapture
 # either perl hapture or -run as executable by chmod 755
@@ -25,13 +25,13 @@ sub init(){
 sub usage(){
 print STDERR << "EOF";
     This program gathers variant haplotype sites from SAM alignment file, and reports a summary file for those variant sites
- 
+
     usage: $0 [-h] -v vcf_file -s sam_file -i int
 
      -h        : this (help) message
      -v file   : variant caller file - VCF format (!! assumed the position is sorted)
      -s file   : sequence alignment file - SAM format
-     -i int    : individual ID (integer value or unbroken string) 
+     -i int    : individual ID (integer value or unbroken string)
      -g str    : group ID (unbroken string)
 
     example: $0 -v s1.vcf -s s1.sam -i 0 -g sebastes
@@ -49,8 +49,8 @@ init();
 
 #----- read vcf file -------------
 
-# Objective: keeps variants' info into memory so that 
-# I can tell whether there are any variant sites for 
+# Objective: keeps variants' info into memory so that
+# I can tell whether there are any variant sites for
 # the alignment read entry from the SAM file
 
 my $vcf; # a hash reference that keeps track of essential vcf info: reference variant, derived variants, pos
@@ -69,7 +69,7 @@ while (<VCF>) {
 	my @snp = split ",", $line[4];
 	for my $deriv (@snp) {
 		$max_len = length($deriv) if length($deriv) > $max_len;
-	} 
+	}
 	next if $max_len > 1;
 
 	#print $line[0], "\t", $line[3], "\t", $line[4], "\n";
@@ -94,7 +94,7 @@ while(<SAM>) {
 	my $cigar = Bio::Cigar->new($lines[5]);
 	my @qseq = split "", $lines[9];
 	my @qseq_qual = split "", $lines[10];
-	
+
 	next if $#qseq < 1;
 	#print "Query length is ", $cigar->query_length, "\n";
 	#print "Reference length is ", $cigar->reference_length, "\n";
@@ -109,7 +109,7 @@ while(<SAM>) {
 			$hapRead->{"seq"} .= "*";
 			push @{$hapRead->{"qual"}}, "_";
 			next;
-		} 
+		}
 		my ($qpos, $op) = $cigar->rpos_to_qpos($rpos_adj);
 
 		if (not defined $qpos) {
@@ -122,14 +122,14 @@ while(<SAM>) {
 		}
 
 		#print $qpos-1, "\t", $#qseq, "\t", $lines[0], "\t", $id, "\n";
-		#print join "\t", $id, $rpos, $qseq[$qpos-1], $qseq_qual[$qpos-1], "\n" if $qpos != -1;	
+		#print join "\t", $id, $rpos, $qseq[$qpos-1], $qseq_qual[$qpos-1], "\n" if $qpos != -1;
 	}
 
-	$hap->{$id}->{$hapRead->{"seq"}}->{"ct"}++; 
+	$hap->{$id}->{$hapRead->{"seq"}}->{"ct"}++;
 	for my $i (0..$#{$vcf->{$id}}) {
 		my $q = 10**(-(ord(${$hapRead->{"qual"}}[$i])-33)/10);
-		${$hap->{$id}->{$hapRead->{"seq"}}->{"logC"}}[$i]+= log(1-$q) ; 
-	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"logW"}}[$i]+= log($q); 
+		${$hap->{$id}->{$hapRead->{"seq"}}->{"logC"}}[$i]+= log(1-$q) ;
+	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"logW"}}[$i]+= log($q);
 	}
 
 }
@@ -141,11 +141,12 @@ for my $id (keys %{$hap}){
 	for my $h (keys %{$hap->{$id}}){
 		print join "\t", $opt{g}, # group label
 				 $opt{i}, # individual id label
-				$id, #locus id   
-				$h, # haplotype sequence 
+				$id, #locus id
+				$h, # haplotype sequence
 				$hap->{$id}->{$h}->{"ct"},  # number of occurence observed for this haplotype or read depth
-				(join ",", @{$hap->{$id}->{$h}->{"logC"}}), # log scale phred stat for being a correct base 
-				(join ",", @{$hap->{$id}->{$h}->{"logW"}}), # log scale phred stat for being a miscalled base 
+				(join ",", @{$hap->{$id}->{$h}->{"logC"}}), # log scale phred stat for being a correct base
+				(join ",", @{$hap->{$id}->{$h}->{"logW"}}), # log scale phred stat for being a miscalled base
+				(join ",", @{$vcf->{$id}}), # variant position
 				 "\n";
 	}
 }
