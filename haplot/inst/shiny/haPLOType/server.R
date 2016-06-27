@@ -1154,7 +1154,7 @@ shinyServer(function(input, output, session) {
     content = function(file) {
       if(input$selectTbl=="reported indiv haplotype") {
         if(is.null(haplo.summaryTbl())) return()
-
+        haplo.freq <- haplo.freqTbl() %>% mutate(obs.freq=round(obs.freq,3), expected.freq=round(expected.freq,3))
         haplo.all.tbl <- haplo.summaryTbl() %>% rename("indiv.ID"=id)
         haplo.all <- left_join(haplo.all.tbl, haplo.freq, by=c("locus", "haplotype.1","haplotype.2"))
         haplo.isAccept <- data.frame(locus=panelParam$locus.label.bare, is.reject=panelParam$is.reject,
