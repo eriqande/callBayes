@@ -24,7 +24,7 @@ shinyServer(function(input, output, session) {
   select.file.tem <- dirFiles[rds.file[1]]
   updateSelectInput(session, "selectDB", selected=select.file.tem, choices=dirFiles[rds.file])
   haplo.sum<- readRDS(select.file.tem)  %>% mutate(id = as.character(id))
-  colnames(haplo.sum) <- c("id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "allele.balance","rank")
+  colnames(haplo.sum) <- c("group", "id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
   }
   else {
     haplo.sum <- NULL
@@ -973,6 +973,7 @@ shinyServer(function(input, output, session) {
       return ()
 
     haplo.filter <- Filter.haplo.sum()
+    position <- strsplit(haplo.filter$pos[1],",") %>% unlist
 
     haplo.profile.frac <- haplo.filter %>%
       group_by(haplo) %>%
@@ -993,12 +994,12 @@ shinyServer(function(input, output, session) {
       tbl_df()
 
     colnames(haplo.split.profile) <- c("group", "pos", "seq", "frac")
-    haplo.split.profile <- haplo.split.profile %>% mutate(pos=as.numeric(pos),
+    haplo.split.profile <- haplo.split.profile %>% mutate(pos=as.numeric(position[as.numeric(pos)]),
                                                           frac=as.numeric(frac),
                                                           group=as.numeric(group))
 
 
-    g <- ggplot(haplo.split.profile, aes(x=factor(pos), y=seq, group=group, size=frac, color=factor(group))) +
+    g <- ggplot(haplo.split.profile, aes(x=pos, y=seq, group=group, size=frac, color=factor(group))) +
       xlab("variant position")+
       ylab("sequence")+
       scale_size_continuous(range = c(3,20), guide=FALSE)
