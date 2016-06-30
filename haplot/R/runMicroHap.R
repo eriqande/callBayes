@@ -26,14 +26,14 @@ RunGibbs <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454, pri
   param <- setParam(haplo.tbl, n.sam, prior.model)
 
   #precompute all
-  preCompute
+  match.matrix <- PreComputeMatching(param, haplo.tbl)
 
   ##call updating for N.sam iterations
   for(i in 1:n.sam)
   {
     param$f <- UpdateF(param)
     param$pf <- UpdatePf(param, haplo.tbl)
-    param$h <- UpdateH(param, haplo.tbl)
+    param$h <- UpdateH(param, match.matrix)
 
     param$save.freq[,i] <- param$f
     param$save.pfreq[,i] <- param$pf
@@ -68,19 +68,21 @@ setParam <- function(haplo.tbl, n.sam, prior.model){
   param$n.sites <- length(strsplit(haplo.tbl$haplo[1],"")[[1]])
 
   param$grp.assoc.indiv <- haplo.tbl %>%
-    group_by(uniq.id) %>%
-    summarise(grp.indx = which(group[1]==param$group)) %>%
-    arrange(uniq.id) %>% select(grp.indx) %>% unlist
+    dplyr::group_by(uniq.id) %>%
+    dplyr::summarise(grp.indx = which(group[1]==param$group)) %>%
+    dplyr::arrange(uniq.id) %>% dplyr::select(grp.indx) %>% unlist
 
   # define the sample space of all possible true haplotypes
   all.haplotype <- haplo.tbl %>%
-    filter(rank < 3 , allele.balance >0.3, depth > 10 ) %>%
-    group_by(haplo) %>%
-    summarise(count=n())
+    dplyr::filter(rank < 3 , allele.balance >0.3, depth > 10 ) %>%
+    dplyr::group_by(haplo) %>%
+    dplyr::summarise(count=n())
 
   param$haplo <- all.haplotype$haplo
   param$haplo.ct <- all.haplotype$count
   param$n.haplo <- length(all.haplotype$haplo)
+  param$haplo.pair <- rbind(t(combn(1:param$n.haplo, 2)), matrix(rep(1:param$n.haplo,2), ncol=2))
+  param$n.haplo.pair <- dim(param$haplo.pair)[1]
 
   ###cache the draw
   param$save.freq <- array(0, dim=c(param$n.haplo, n.sam))
@@ -107,8 +109,8 @@ setParam <- function(haplo.tbl, n.sam, prior.model){
   param$H <- array(0, dim=c(param$n.indiv, param$n.haplo))
 
   haplo.select <- haplo.tbl %>%
-    group_by(uniq.id) %>%
-    summarise(haplo.1.indx = sample(1:param$n.haplo,
+    dplyr::group_by(uniq.id) %>%
+    dplyr::summarise(haplo.1.indx = sample(1:param$n.haplo,
                                     1,
                                     prob=tabulate(match(haplo, param$haplo),
                                                      nbins=param$n.haplo)+
@@ -142,14 +144,21 @@ PreComputeMatching <- function(param, haplo.tbl){
   })
 
   # Summing all log P by individual
-  index.read.to.indiv <- haplo.tbl %>% mutate(indx = row_number()) %>% select(uniq.id, indx)%>% as.matrix(ncol=2,byrow=T)
+  index.read.to.indiv <- haplo.tbl %>% dplyr::mutate(indx = row_number()) %>% dplyr::select(uniq.id, indx)%>% as.matrix(ncol=2,byrow=T)
   indic.matrix.read.by.indiv <- matrix(0, nrow=param$n.indiv, ncol=n.reads)
   indic.matrix.read.by.indiv[index.read.to.indiv] <- 1
 
   logP.indiv.match.ref <- indic.matrix.read.by.indiv %*% logP.read.match.ref
 
-  haplo.tbl %>% mutate(indx = match(haplo, param$haplo, nomatch = 0)) %>% select(indx)
+  indic.combn <- matrix(0, nrow=param$n.haplo , ncol=param$n.haplo.pair)
 
+  indic.combn[cbind(param$haplo.pair[,1],
+                    1:param$n.haplo.pair)] <- 1
+  indic.combn[cbind(param$haplo.pair[,2],
+                    1:param$n.haplo.pair)] <- indic.combn[cbind(param$haplo.pair[,2],
+                                                                1:param$n.haplo.pair)] + 1
+
+  logP.indiv.match.ref %*% indic.combn
 }
 
 
@@ -164,7 +173,7 @@ UpdatePf <- function(param, haplo.tbl){
   }))
 }
 
-UpdateH <- function(param, haplo.tbl){
+UpdateH <- function(param, match.matrix){
 
 }
 
