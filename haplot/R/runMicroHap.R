@@ -2,9 +2,12 @@
 # Testing set:
 haplo.sum<- readRDS("data/satro_sample/example_1.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
 colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
-RunGibbs(haplo.sum, "tag_id_1377", 1)
-haplo.tbl <- haplo.sum
+collect.data <- RunGibbs(haplo.sum, "tag_id_1377", 200)
 
+haplo.tbl <- haplo.sum
+locus <- "tag_id_1377"
+prior.model<-"uniform"
+n.sam <- 20
 
 ## This function runs Gibbs sampling of observed haplotypes
 #' @param haplo.tbl data frame. A haplotype data frame generated from running `runHaplo`.  The table contains "group" label, individual "id" label,
@@ -13,7 +16,7 @@ haplo.tbl <- haplo.sum
 #' @param n.sample integer. number of iterations. required
 #' @param n.burn integer. number of burn-in cycle. n.burn < n.sample. Default sets as 0. Optional.
 #' @param random.seed integer. Set the random seed number. Default sets as 43454. Optional
-#' @param prior.model String. Choose two different prior models: "uniform" - prior sets all the dirichlet hyperparamters as 1, or "empirical": the prior
+#' @param prior.model String. Choose two different prior models: "uniform" - prior set all prior haplotype weight to 1, or "empirical": the prior
 #' alpha values are defined by the number of observed cases under refinement
 RunGibbs <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454, prior.model="uniform")
 {
@@ -36,14 +39,14 @@ RunGibbs <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454, pri
     param$h <- UpdateH(param, match.matrix)
 
     param$save.freq[,i] <- param$f
-    param$save.pfreq[,i] <- param$pf
+    param$save.pfreq[,,i] <- param$pf
     param$save.hap[,,i] <- param$h
   }
 
   ### clean out the burn-in steps
-  param$save.freq <- param$save.freq[,-(1:n.burn)]
-  param$save.pfreq <- param$save.pfreq[,-(1:n.burn)]
-  param$save.hap <- param$save.hap[-(1:n.burn)]
+  # param$save.freq <- param$save.freq[,-(1:n.burn)]
+  # param$save.pfreq <- param$save.pfreq[,-(1:n.burn)]
+  # param$save.hap <- param$save.hap[-(1:n.burn)]
   return(param)
 }
 
@@ -106,7 +109,7 @@ setParam <- function(haplo.tbl, n.sam, prior.model){
   }))
 
 
-  param$H <- array(0, dim=c(param$n.indiv, param$n.haplo))
+  param$h <- array(0, dim=c(param$n.indiv, param$n.haplo))
 
   haplo.select <- haplo.tbl %>%
     dplyr::group_by(uniq.id) %>%
@@ -121,11 +124,20 @@ setParam <- function(haplo.tbl, n.sam, prior.model){
                                                   nbins=param$n.haplo)+
                                       param$pf[which(group[1]==param$group),]))
 
-  param$H[cbind(haplo.select$uniq.id,
+  param$h[cbind(haplo.select$uniq.id,
                 haplo.select$haplo.1.indx)] <- 1
-  param$H[cbind(haplo.select$uniq.id,
-                haplo.select$haplo.2.indx)] <- param$H[cbind(haplo.select$uniq.id,
+  param$h[cbind(haplo.select$uniq.id,
+                haplo.select$haplo.2.indx)] <- param$h[cbind(haplo.select$uniq.id,
                                                              haplo.select$haplo.2.indx)]+1
+
+  param$indic.combn <- matrix(0, nrow=param$n.haplo , ncol=param$n.haplo.pair)
+
+  param$indic.combn[cbind(param$haplo.pair[,1],
+                    1:param$n.haplo.pair)] <- 1
+  param$indic.combn[cbind(param$haplo.pair[,2],
+                    1:param$n.haplo.pair)] <- param$indic.combn[cbind(param$haplo.pair[,2],
+                                                                1:param$n.haplo.pair)] + 1
+
 
   return(param)
 }
@@ -143,22 +155,29 @@ PreComputeMatching <- function(param, haplo.tbl){
       logI.matrix * (sites.matrix!=ref.matrix))
   })
 
+  exact.match <- sapply(1:param$n.haplo, function(i){
+    haplo.tbl$haplo==param$haplo[i]
+  })
+
+  # impose that any observed haplotype that completely matches with one of the reference haplotype MUST
+  # derived from that reference haplotype, thus ignore the possibility that observed haplotype
+  # could generated from genotype error
+
+  exact.match.pair.haplo <- exact.match %*% param$indic.combn > 0
+
+  logP.match.by.indiv <- (exact.match.pair.haplo *
+                            rowSums(logP.read.match.ref *exact.match) *
+                            2 ) + (
+                              (!exact.match.pair.haplo) *
+                                (logP.read.match.ref %*% param$indic.combn))
+
+
   # Summing all log P by individual
   index.read.to.indiv <- haplo.tbl %>% dplyr::mutate(indx = row_number()) %>% dplyr::select(uniq.id, indx)%>% as.matrix(ncol=2,byrow=T)
   indic.matrix.read.by.indiv <- matrix(0, nrow=param$n.indiv, ncol=n.reads)
   indic.matrix.read.by.indiv[index.read.to.indiv] <- 1
 
-  logP.indiv.match.ref <- indic.matrix.read.by.indiv %*% logP.read.match.ref
-
-  indic.combn <- matrix(0, nrow=param$n.haplo , ncol=param$n.haplo.pair)
-
-  indic.combn[cbind(param$haplo.pair[,1],
-                    1:param$n.haplo.pair)] <- 1
-  indic.combn[cbind(param$haplo.pair[,2],
-                    1:param$n.haplo.pair)] <- indic.combn[cbind(param$haplo.pair[,2],
-                                                                1:param$n.haplo.pair)] + 1
-
-  logP.indiv.match.ref %*% indic.combn
+  indic.matrix.read.by.indiv %*% logP.match.by.indiv
 }
 
 
@@ -169,11 +188,37 @@ UpdateF <- function(param){
 
 UpdatePf <- function(param, haplo.tbl){
   t(sapply(1:param$n.group, function(i) {
-    gtools::rdirichlet(1, colSums(param$H[param$grp.assoc.indiv==i,])+param$f)
+    gtools::rdirichlet(1, colSums(param$h[param$grp.assoc.indiv==i,])+param$f)
   }))
 }
 
 UpdateH <- function(param, match.matrix){
+
+  logP.contrib.pf <- param$pf %*% param$indic.combn %>%
+    .[param$grp.assoc.indiv,] %>%
+    log
+
+  logP.h <- match.matrix + logP.contrib.pf
+
+  # need to normalize to prevent numeric overflow
+  prob.distrib <- t(apply(logP.h, 1, function(i) {
+    exp(i-max(i))
+  }))
+
+  pair.indx <- sapply(1:param$n.indiv, function(i){
+    sample(param$n.haplo.pair,1, prob=prob.distrib[i,])
+  })
+
+  h <- array(0, dim=c(param$n.indiv, param$n.haplo))
+  h[cbind(1:param$n.indiv,
+          param$haplo.pair[pair.indx,1]) ] <- 1
+
+  h[cbind(1:param$n.indiv,
+          param$haplo.pair[pair.indx,2]) ] <-
+    h[cbind(1:param$n.indiv,
+            param$haplo.pair[pair.indx,2]) ] + 1
+
+  h
 
 }
 
