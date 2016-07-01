@@ -1,15 +1,17 @@
 
 # Testing set:
-haplo.sum<- readRDS("data/satro_sample/example_1.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
-colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
-collect.data <- RunGibbs(haplo.sum, "tag_id_1377", 200)
+# haplo.sum<- readRDS("data/satro_sample/example_1.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
+# colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
+# collect.data <- RunGibbs(haplo.sum, "tag_id_1377", 2)
 
-haplo.tbl <- haplo.sum
-locus <- "tag_id_1377"
-prior.model<-"uniform"
-n.sam <- 20
+# haplo.tbl <- haplo.sum
+# locus <- "tag_id_1377"
+# prior.model<-"uniform"
+# n.sam <- 20
 
-## This function runs Gibbs sampling of observed haplotypes
+#' Microhaplotype sampler
+#'
+#' This hierarchical Gibbs sampler infers the true haplotype of grouped individuals of a given locus.
 #' @param haplo.tbl data frame. A haplotype data frame generated from running `runHaplo`.  The table contains "group" label, individual "id" label,
 #'  "locus" label, observed "haplo"type, haplotype read "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank", etc.
 #' @param locus string. the locus name. Required
@@ -18,7 +20,10 @@ n.sam <- 20
 #' @param random.seed integer. Set the random seed number. Default sets as 43454. Optional
 #' @param prior.model String. Choose two different prior models: "uniform" - prior set all prior haplotype weight to 1, or "empirical": the prior
 #' alpha values are defined by the number of observed cases under refinement
-RunGibbs <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454, prior.model="uniform")
+#' @export
+#' @examples
+#' # collect.data <- RunSrMicrohap(haplo.sum, "tag_id_1377", 2)
+RunSrMicrohap <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454, prior.model="uniform")
 {
   set.seed(random.seed)
 
@@ -26,7 +31,7 @@ RunGibbs <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454, pri
   haplo.tbl <- tidyHaplo(haplo.tbl, locus)
 
   #initialize parameters
-  param <- setParam(haplo.tbl, n.sam, prior.model)
+  param <- setParam(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model)
 
   #precompute all
   match.matrix <- PreComputeMatching(param, haplo.tbl)
@@ -44,9 +49,12 @@ RunGibbs <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454, pri
   }
 
   ### clean out the burn-in steps
-  # param$save.freq <- param$save.freq[,-(1:n.burn)]
-  # param$save.pfreq <- param$save.pfreq[,-(1:n.burn)]
-  # param$save.hap <- param$save.hap[-(1:n.burn)]
+  if (n.burn > 0) {
+  param$save.freq <- param$save.freq[,-(1:n.burn)]
+  param$save.pfreq <- param$save.pfreq[,,-(1:n.burn)]
+  param$save.hap <- param$save.hap[,,-(1:n.burn)]
+  }
+
   return(param)
 }
 
@@ -61,9 +69,15 @@ tidyHaplo <- function(haplo.tbl, locus.select) {
     dplyr::mutate(uniq.id = as.numeric(factor(id, levels=unique(haplo.tbl$id))))
 }
 
-setParam <- function(haplo.tbl, n.sam, prior.model){
+setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
 
   param <- NULL
+
+  param$locus.select <- locus
+  param$n.sam <- n.sam
+  param$n.burn <- n.burn
+  param$random.seed <- random.seed
+  param$prior.model <- prior.model
 
   param$group <- unique(haplo.tbl$group)
   param$n.group <- length(param$group)
