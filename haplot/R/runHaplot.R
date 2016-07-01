@@ -122,4 +122,9 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   saveRDS(haplo.add.balance, paste0(out.path, "/",run.label,".rds"))
 
   system(paste0("cp ", out.path, "/",run.label,".rds ", shinyDir, "/",run.label,".rds ") )
+
+  cat(paste0("\n\nThe RDS file is copied into shiny directory: ",shinyDir, "/",run.label,".rds ",
+             "\nRun runHaplotype() to open shiny app."))
+
+  return(haplo.add.balance)
 }
