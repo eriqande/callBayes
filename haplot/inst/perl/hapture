@@ -14956,14 +14956,14 @@ while(<SAM>) {
 		$ct++;
 
 		if ($cigar->reference_length < $rpos_adj || $rpos_adj < 1) {
-			$hapRead->{"seq"} .= "*";
+			$hapRead->{"seq"} .= "N"; # marked as unknown
 			push @{$hapRead->{"qual"}}, "_";
 			next;
 		}
 		my ($qpos, $op) = $cigar->rpos_to_qpos($rpos_adj);
 
 		if (not defined $qpos) {
-			$hapRead->{"seq"} .= "_";
+			$hapRead->{"seq"} .= "X"; # marked as deletion site
 			push @{$hapRead->{"qual"}}, "_";
  		}
 		else {
