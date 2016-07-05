@@ -26,3 +26,6 @@ Imports:
 URL: https://github.com/ngthomas/callBayes
 BugReports: https://github.com/ngthomas/callBayes/issues
 RoxygenNote: 5.0.1
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr
