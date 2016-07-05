@@ -100,7 +100,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   if (add.filter) {
 
     haplo.cleanup <- haplo.sum %>%
-      dplyr::filter(grepl(!"[N]", haplo)) %>%
+      dplyr::filter(!grepl("[N]", haplo)) %>%
       dplyr::group_by(locus, id) %>%
       dplyr::mutate(n.haplo.per.indiv=n()) %>%
       dplyr::ungroup() %>%
