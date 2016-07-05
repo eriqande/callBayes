@@ -30,7 +30,7 @@ runHaplotype <- function() {
 #' sam.path<-"data/satro_sample"
 #' label.path <- "data/satro_sample/seb11_12_ssp.txt"
 #' vcf.path <- "data/satro_sample/sebastes.vcf"
-#' runHaplot(run.label, sam.path, label.path, vcf.path)
+#' # runHaplot(run.label, sam.path, label.path, vcf.path)
 runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   out.path=sam.path,
   add.filter=FALSE){
@@ -100,7 +100,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   if (add.filter) {
 
     haplo.cleanup <- haplo.sum %>%
-      dplyr::filter(grepl("[*]", haplo)) %>%
+      dplyr::filter(grepl(!"[N]", haplo)) %>%
       dplyr::group_by(locus, id) %>%
       dplyr::mutate(n.haplo.per.indiv=n()) %>%
       dplyr::ungroup() %>%
