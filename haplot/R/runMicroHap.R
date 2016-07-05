@@ -2,7 +2,7 @@
 # Testing set:
 # haplo.sum<- readRDS("data/satro_sample/example_1.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
 # colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
-# collect.data <- RunGibbs(haplo.sum, "tag_id_1377", 2)
+# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_1377", 2)
 
 # haplo.tbl <- haplo.sum
 # locus <- "tag_id_1377"
@@ -43,17 +43,17 @@ RunSrMicrohap <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454
     param$pf <- UpdatePf(param, haplo.tbl)
     param$h <- UpdateH(param, match.matrix)
 
-    param$save.freq[,i] <- param$f
-    param$save.pfreq[,,i] <- param$pf
-    param$save.hap[,,i] <- param$h
+    param$save.freq[[i]] <- param$f
+    param$save.pfreq[[i]] <- param$pf
+    param$save.hap[[i]] <- param$h
   }
 
   ### clean out the burn-in steps
-  if (n.burn > 0) {
-  param$save.freq <- param$save.freq[,-(1:n.burn)]
-  param$save.pfreq <- param$save.pfreq[,,-(1:n.burn)]
-  param$save.hap <- param$save.hap[,,-(1:n.burn)]
-  }
+  # if (n.burn > 0) {
+  # param$save.freq <- param$save.freq[,-(1:n.burn)]
+  # param$save.pfreq <- param$save.pfreq[,,-(1:n.burn)]
+  # param$save.hap <- param$save.hap[,,-(1:n.burn)]
+  # }
 
   return(param)
 }
@@ -89,9 +89,10 @@ setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
     dplyr::summarise(grp.indx = which(group[1]==param$group)) %>%
     dplyr::arrange(uniq.id) %>% dplyr::select(grp.indx) %>% unlist
 
-  # define the sample space of all possible true haplotypes
+  # define the sample space of all possible true haplotypes:
   all.haplotype <- haplo.tbl %>%
     dplyr::filter(rank < 3 , allele.balance >0.3, depth > 10 ) %>%
+    dplyr::filter(!grepl("[N]", haplo)) %>%
     dplyr::group_by(haplo) %>%
     dplyr::summarise(count=n())
 
@@ -102,9 +103,10 @@ setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
   param$n.haplo.pair <- dim(param$haplo.pair)[1]
 
   ###cache the draw
-  param$save.freq <- array(0, dim=c(param$n.haplo, n.sam))
-  param$save.pfreq <- array(0, dim=c(param$n.group, param$n.haplo, n.sam))
-  param$save.hap <- array(0, dim=c(param$n.indiv, param$n.haplo, n.sam))
+  param$save.freq <- vector("list", n.sam)
+  param$save.pfreq <- vector("list", n.sam)
+  param$save.hap <- vector("list", n.sam)
+
 
   ## initialize all current parameters
   param$alpha <- param$haplo.ct
@@ -163,6 +165,9 @@ PreComputeMatching <- function(param, haplo.tbl){
   logI.matrix <- strsplit(haplo.tbl$logP.miscall, ",") %>% unlist %>% as.numeric() %>% matrix(ncol=param$n.sites, byrow=T)
 
   n.reads <- dim(haplo.tbl)[1]
+
+  # compare read haplotype to reference haplotype
+  # the way i have works as long as the reference haplotype does not contain any "N"
   logP.read.match.ref <- sapply(1:param$n.haplo, function(i) {
     ref.matrix <- strsplit(param$haplo[i],"")%>% unlist %>% rep(., n.reads) %>% matrix(ncol=param$n.sites, byrow=T)
     rowSums(logC.matrix * (sites.matrix==ref.matrix) +
