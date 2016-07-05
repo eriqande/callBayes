@@ -1,1 +1,59 @@
-# callBayes
+# haplot   
+
+The goal of `haplot` is to give visual summary of haplotype taken from short read alignment files.
+
+Using `haplot` is quick and straight-forward. It takes two function calls to extract, process and display haplotype, of which you get your results within a few minutes. `haplot` is suitable for quick-and-dirty assesement of haplotype. Plot summaries include read depth, fraction of calleable haplotype, Hardy-Weinberg equilibrium plot, and more.   
+
+### Installation
+
+You will need [devtools](https://github.com/hadley/devtools) to install `haplot`. You can get `devtools` by `install.packages("devtools")`.
+
+Once you have `devtools`, you can get `haplot` by this command:
+```r
+devtools::install_github("ngthomas/callBayes/haplot")
+```
+
+
+### Quick Guide to use Haplot
+
+To upload your alignment files to shiny App `haPLOType`, you will need to generate a tab-separate **label** file with 3 info columns: path to SAM file name, individual ID, and group label. 
+
+If you do not want assign any group label for the individuals, you can just leave it as "NA". 
+
+NOTE: It is recommended that you have all of the SAM files under one directory to make this labeling task easier.
+
+An example of the `label` file:
+```txt
+satro_flashed_s1_aln.sam        s1      black
+satro_flashed_s2_aln.sam        s2      black
+satro_flashed_s3_aln.sam        s3      black
+satro_flashed_s4_aln.sam        s4      black
+satro_flashed_s5_aln.sam        s5      copper
+``` 
+  
+  
+Now you can proceed with running `runHaplot`. You will need to provide:
+
+ * run label 
+ * path to the directory with all SAM files 
+ * path to the `label` file you just created
+ * path to the VCF file  
+  
+  
+```R
+library(haplot)
+
+haplo.read.tbl <- runHaplot(run.label="example 1", 
+          sam.path="data/satro_sample",
+          label.path="data/satro_sample/sample_label.txt",
+          vcf.path="data/satro_sample/sebastes.vcf")
+
+runHaplotype()
+```
+
+
+### Suggestions
+- SAM files: For pair-ended experiment, both directional reads should be flashed into one.
+
+- VCF: `SrMicroHap` might have trouble infering individual's true haplotype if no reads are aligned to the variant site.
+
