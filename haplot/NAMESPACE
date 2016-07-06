@@ -2,6 +2,7 @@
 
 export("%>%")
 export(RunSrMicrohap)
+export(mvHaplotype)
 export(runHaplot)
 export(runHaplotype)
 importFrom(magrittr,"%>%")
