@@ -1,14 +1,14 @@
 # haplot   
 
-The goal of `haplot` is to give visual summary of haplotype taken from short read alignment files.
+The goal of `haplot` is to generate visual summary of microhaplotype found in short read alignments.
 
-Using `haplot` is quick and straight-forward. It takes two function calls to extract, process and display haplotype, of which you get your results within a few minutes. `haplot` is suitable for quick-and-dirty assesement of haplotype. Plot summaries include read depth, fraction of calleable haplotype, Hardy-Weinberg equilibrium plot, and more.   
+The process of using `haplot` is quick and straight-forward. It takes two function calls to extract, process and display haplotype, of which can be completed within minutes. `haplot` is suitable for carrying quick assesement and quality control of haplotype generated from library runs. Plot summaries include read depth, fraction of calleable haplotype, Hardy-Weinberg equilibrium plot, and more.   
 
 ### Installation
 
 You will need [devtools](https://github.com/hadley/devtools) to install `haplot`. You can get `devtools` by `install.packages("devtools")`.
 
-Once you have `devtools`, you can get `haplot` by this command:
+Once you have `devtools` available in R, you can get `haplot` by this command:
 ```r
 devtools::install_github("ngthomas/callBayes/haplot")
 ```
@@ -20,7 +20,7 @@ To upload your alignment files to shiny App `haPLOType`, you will need to genera
 
 If you do not want assign any group label for the individuals, you can just leave it as "NA". 
 
-NOTE: It is recommended that you have all of the SAM files under one directory to make this labeling task easier.
+NOTE: It is recommended that you have all of the SAM files under one directory to make this labeling task easiler.
 
 An example of the `label` file:
 ```txt
@@ -34,7 +34,7 @@ satro_flashed_s5_aln.sam        s5      copper
   
 Now you can proceed with running `runHaplot`. You will need to provide:
 
- * run label 
+ * a run label 
  * path to the directory with all SAM files 
  * path to the `label` file you just created
  * path to the VCF file  
