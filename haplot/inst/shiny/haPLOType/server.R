@@ -1002,7 +1002,8 @@ shinyServer(function(input, output, session) {
     g <- ggplot(haplo.split.profile, aes(x=pos, y=seq, group=group, size=frac, color=factor(group))) +
       xlab("variant position")+
       ylab("sequence")+
-      scale_size_continuous(range = c(3,20), guide=FALSE)
+      scale_size_continuous(range = c(3,20), guide=FALSE)+
+      scale_x_continuous(breaks=as.numeric(position), labels=as.numeric(position))
 
     if (length(unique(haplo.split.profile$pos))==1) {
       g <- g + geom_point(alpha=0.9)
