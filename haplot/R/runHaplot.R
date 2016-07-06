@@ -56,7 +56,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   if(!file.exists(paste0(out.path,"/intermed"))) dir.create(paste0(out.path,"/intermed"))
 
   # catch any problem in label file
-  read.label <- tryCatch(read.table(label.path), error = function(c) {
+  read.label <- tryCatch(read.table(label.path,sep="\t"), error = function(c) {
     c$message <- paste0(c$message, " (in ", label.path , ")")
     stop(c)
   })
