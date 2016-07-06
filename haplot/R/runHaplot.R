@@ -1,17 +1,37 @@
 #' Run Haplotype Plot.
 #'
-#' Run Haplotype shiny plot
+#' Run Haplotype shiny
+#' @path Path to shiny haPLOType app. Optional. If not specified, the path is default to local app path.
 #' @export
 #' @examples
 #' runHaplotype()
-runHaplotype <- function() {
-  appDir <- system.file("shiny", "haPLOType", package = "haplot")
-  if (appDir == "") {
+runHaplotype <- function(path=system.file("shiny", "haPLOType", package = "haplot")) {
+  if (path == "" || !file.exists(path)) {
+    #stop("Could not find shiny directory. Try re-installing `mypackage`.", call. = FALSE)
+    stop("Could not find shiny directory", call. = FALSE)
+  }
+  shiny::runApp(path, display.mode = "normal")
+}
+
+#' Redirect haPLOType app.
+#'
+#' makes a copy of shiny haPLOType to a different directory
+#' @param path string. directory path. Required
+#' @export
+#' @examples
+#' runHaplotype()
+mvHaplotype <- function(path) {
+  app.dir <- system.file("shiny", "haPLOType", package = "haplot")
+  if (app.dir == "") {
     stop("Could not find shiny directory. Try re-installing `mypackage`.", call. = FALSE)
   }
 
-  shiny::runApp(appDir, display.mode = "normal")
+  if(!file.exists(paste0(path))) dir.create(path)
+
+  system(paste0("cp ", app.dir, "/*.R ", path, "/.") )
 }
+
+
 
 
 #' Extract haplotype from alignment reads.
@@ -24,6 +44,7 @@ runHaplotype <- function() {
 #' @param vcf.path string. VCF file path. Required
 #' @param out.path string. Optional. If not specified, the intermediate files are created under \code{sam.path}, with the assumption that directory is granted for written permission.
 #' @param add.filter boolean. Optional. If true, this removes any haplotype with unknown and deletion alignment characters i.e. "*" and "_", removes any locus with large number of haplotypes ( # > 40) , and remove any locus with fewer than half of the total individuals.
+#' @param app.path string. Path to shiny haPLOType app. Optional. If not specified, the path is default to local app path.
 #' @export
 #' @examples
 #' run.label<-"example 1"
@@ -33,14 +54,11 @@ runHaplotype <- function() {
 #' # runHaplot(run.label, sam.path, label.path, vcf.path)
 runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   out.path=sam.path,
-  add.filter=FALSE){
-
+  add.filter=FALSE,
+  app.path=system.file("shiny", "haPLOType", package = "haplot")){
 
   run.label <- gsub(" +","_",run.label)
   haptureDir <- system.file("perl", "hapture", package = "haplot")
-  shinyDir <- system.file("shiny", "haPLOType", package = "haplot")
-
-
 
   # Need to check whether all path and files exist
   if(!file.exists(paste0(sam.path))) stop("the path for 'sam.path' - ", sam.path, " does not exist")
@@ -81,7 +99,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
     file=paste0(out.path, "/runHapture.sh"),
     append=T)
 
-  cat("...running Hapture.pl to extract haplotype information")
+  cat("...running Hapture.pl to extract haplotype information (takes a while)...")
   system(paste0("bash ",out.path,"/runHapture.sh"))
 
   summary.tbl<-paste0(out.path,"/intermed/all.summary")
@@ -95,7 +113,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
 
   num.id <- length(unique(haplo.sum$id))
 
-  cat(paste0("\n...Prepping RDS file : ",out.path, "/",run.label,".rds"))
+  cat(paste0("\n...Prepping RDS file : ",out.path, "/",run.label,".rds\n"))
 
   if (add.filter) {
 
@@ -121,10 +139,10 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
 
   saveRDS(haplo.add.balance, paste0(out.path, "/",run.label,".rds"))
 
-  system(paste0("cp ", out.path, "/",run.label,".rds ", shinyDir, "/",run.label,".rds ") )
+  cat(paste0("\n\nRDS file: copied into shiny directory: ",app.path, "/",run.label,".rds ",
+             "\nRun runHaplotype() to open shiny app.\n\n"))
 
-  cat(paste0("\n\nThe RDS file is copied into shiny directory: ",shinyDir, "/",run.label,".rds ",
-             "\nRun runHaplotype() to open shiny app.\n"))
+  system(paste0("cp ", out.path, "/",run.label,".rds ", app.path, "/",run.label,".rds") )
 
   return(haplo.add.balance)
 }
