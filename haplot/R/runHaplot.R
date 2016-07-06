@@ -28,7 +28,7 @@ runHaplotype <- function() {
 #' @examples
 #' run.label<-"example 1"
 #' sam.path<-"data/satro_sample"
-#' label.path <- "data/satro_sample/seb11_12_ssp.txt"
+#' label.path <- "data/satro_sample/sample_label.txt"
 #' vcf.path <- "data/satro_sample/sebastes.vcf"
 #' # runHaplot(run.label, sam.path, label.path, vcf.path)
 runHaplot <- function(run.label, sam.path, label.path, vcf.path,
@@ -124,7 +124,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   system(paste0("cp ", out.path, "/",run.label,".rds ", shinyDir, "/",run.label,".rds ") )
 
   cat(paste0("\n\nThe RDS file is copied into shiny directory: ",shinyDir, "/",run.label,".rds ",
-             "\nRun runHaplotype() to open shiny app."))
+             "\nRun runHaplotype() to open shiny app.\n"))
 
   return(haplo.add.balance)
 }
