@@ -5,7 +5,8 @@
 \title{Extract haplotype from alignment reads.}
 \usage{
 runHaplot(run.label, sam.path, label.path, vcf.path, out.path = sam.path,
-  add.filter = FALSE)
+  add.filter = FALSE, app.path = system.file("shiny", "haPLOType", package =
+  "haplot"))
 }
 \arguments{
 \item{run.label}{character vector. Run label to be used to display in haPLOType. Required}
@@ -19,6 +20,8 @@ runHaplot(run.label, sam.path, label.path, vcf.path, out.path = sam.path,
 \item{out.path}{string. Optional. If not specified, the intermediate files are created under \code{sam.path}, with the assumption that directory is granted for written permission.}
 
 \item{add.filter}{boolean. Optional. If true, this removes any haplotype with unknown and deletion alignment characters i.e. "*" and "_", removes any locus with large number of haplotypes ( # > 40) , and remove any locus with fewer than half of the total individuals.}
+
+\item{app.path}{string. Path to shiny haPLOType app. Optional. If not specified, the path is default to local app path.}
 }
 \description{
 The function \code{haplot} extracts haplotype from sequence alignment files through perl script \code{hapture} and returns a summary table of the read depth and read quality associate with haplotype.
@@ -26,8 +29,8 @@ The function \code{haplot} extracts haplotype from sequence alignment files thro
 \examples{
 run.label<-"example 1"
 sam.path<-"data/satro_sample"
-label.path <- "data/satro_sample/seb11_12_ssp.txt"
+label.path <- "data/satro_sample/sample_label.txt"
 vcf.path <- "data/satro_sample/sebastes.vcf"
-runHaplot(run.label, sam.path, label.path, vcf.path)
+# runHaplot(run.label, sam.path, label.path, vcf.path)
 }
 

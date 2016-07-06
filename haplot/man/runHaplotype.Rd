@@ -4,10 +4,10 @@
 \alias{runHaplotype}
 \title{Run Haplotype Plot.}
 \usage{
-runHaplotype()
+runHaplotype(path = system.file("shiny", "haPLOType", package = "haplot"))
 }
 \description{
-Run Haplotype shiny plot
+Run Haplotype shiny
 }
 \examples{
 runHaplotype()
