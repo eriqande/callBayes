@@ -10,17 +10,20 @@ You will need [devtools](https://github.com/hadley/devtools) to install `haplot`
 
 Once you have `devtools` available in R, you can get `haplot` by this command:
 ```r
+# sudo R
 devtools::install_github("ngthomas/callBayes/haplot")
+
+haplot::mvHaplotype("~/bin/haPLOType") #provide a directory path to host haPLOType app
 ```
 
 
 ### Quick Guide to use Haplot
 
-To upload your alignment files to shiny App `haPLOType`, you will need to generate a tab-separate **label** file with 3 info columns: path to SAM file name, individual ID, and group label. 
+To upload your alignment files to shiny App `haPLOType`, you will need to generate a tab-separate **label** file with 3 info columns: path to SAM file name, individual ID, and group label (in this particular order). 
 
 If you do not want assign any group label for the individuals, you can just leave it as "NA". 
 
-NOTE: It is recommended that you have all of the SAM files under one directory to make this labeling task easiler.
+NOTE: It is recommended that you have all of the SAM files under one directory to make this labeling task easier.
 
 An example of the `label` file:
 ```txt
@@ -43,12 +46,21 @@ Now you can proceed with running `runHaplot`. You will need to provide:
 ```R
 library(haplot)
 
-haplo.read.tbl <- runHaplot(run.label="example 1", 
-          sam.path="data/satro_sample",
-          label.path="data/satro_sample/sample_label.txt",
-          vcf.path="data/satro_sample/sebastes.vcf")
+# ---- edit ---------
+run.label <- "example 1"
+sam.path <- "data/satro_sample"
+label.path <- "data/satro_sample/sample_label.txt"
+vcf.path <- "data/satro_sample/sebastes.vcf"
+app.path <- "~/bin/haPLOType" 
+# -------------------------
 
-runHaplotype()
+haplo.read.tbl <- runHaplot(run.label = run.label, 
+          sam.path=sam.path,
+          label.path=label.path,
+          vcf.path=vcf.path,
+          app.path=app.path)
+
+runHaplotype(app.path)
 ```
 
 
