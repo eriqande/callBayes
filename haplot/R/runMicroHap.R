@@ -61,7 +61,7 @@ RunSrMicrohap <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454
 tidyHaplo <- function(haplo.tbl, locus.select) {
 
   haplo.tbl <- haplo.tbl %>% dplyr::filter(locus == locus.select)
-  n.sites <- length(unlist(strsplit(haplo.tbl$haplo[1],"")))
+  n.sites <- nchar(haplo.tbl$haplo[1])
   haplo.tbl %>%
     #tidyr::separate(haplo, paste0("haplo.",1:n.sites), sep="(?!^)", extra="drop", remove=F) %>%
     #tidyr::separate(logP.call, paste0("logC.",1:n.sites), sep=",") %>%
@@ -82,7 +82,7 @@ setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
   param$group <- unique(haplo.tbl$group)
   param$n.group <- length(param$group)
   param$n.indiv <- length(unique(haplo.tbl$id))
-  param$n.sites <- length(strsplit(haplo.tbl$haplo[1],"")[[1]])
+  param$n.sites <- nchar(haplo.tbl$haplo[1])
 
   param$grp.assoc.indiv <- haplo.tbl %>%
     dplyr::group_by(uniq.id) %>%
@@ -92,13 +92,41 @@ setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
   # define the sample space of all possible true haplotypes:
   all.haplotype <- haplo.tbl %>%
     dplyr::filter(rank < 3 , allele.balance >0.3, depth > 10 ) %>%
-    dplyr::filter(!grepl("[N]", haplo)) %>%
+    #dplyr::filter(!grepl("[N]", haplo)) %>%
     dplyr::group_by(haplo) %>%
     dplyr::summarise(count=n())
 
-  param$haplo <- all.haplotype$haplo
-  param$haplo.ct <- all.haplotype$count
+  # this section removes any true haplotype with unnecessary "N" variant sites
+  haplo.char <- matrix(unlist(strsplit(unique(all.haplotype$haplo), "")),
+                       ncol=param$n.sites,
+                       byrow=T)
+
+  singlet.site <- (apply(haplo.char, 2, function(i) length(unique(i)))!=1)*1
+  dispose.indx <- ((haplo.char == "N") %*% singlet.site > 0)
+
+  pass.haplo.list <- all.haplotype$haplo[!dispose.indx]
+  pass.ct <- all.haplotype$count[!dispose.indx]
+  fail.haplo.list <- all.haplotype$haplo[dispose.indx]
+  fail.ct <- all.haplotype$count[dispose.indx]
+
+  if (sum(dispose.indx) > 0){
+    for (i in 1:sum(dispose.indx)) {
+      n.match <- sapply(1:length(pass.haplo.list), function(j){
+        sum(unlist(strsplit(fail.haplo.list[i],"")) ==
+              unlist(strsplit(pass.haplo.list[j],"")))
+      })
+      best.match <- n.match == max(n.match)
+      best.match <- best.match / length(best.match)
+      pass.ct <- pass.ct + (fail.ct[i] * best.match)
+    }
+  }
+
+
+  param$haplo <- pass.haplo.list
+  param$haplo.ct <- pass.ct
   param$n.haplo <- length(all.haplotype$haplo)
+
+
   param$haplo.pair <- rbind(t(combn(1:param$n.haplo, 2)), matrix(rep(1:param$n.haplo,2), ncol=2))
   param$n.haplo.pair <- dim(param$haplo.pair)[1]
 
