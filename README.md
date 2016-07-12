@@ -37,7 +37,7 @@ satro_flashed_s5_aln.sam        s5      copper
   
 Now you can proceed with running `runHaplot`. You will need to provide:
 
- * a run label 
+ * a label 
  * path to the directory with all SAM files 
  * path to the `label` file you just created
  * path to the VCF file  
