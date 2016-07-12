@@ -66,11 +66,14 @@ shinyServer(function(input, output, session) {
   indivPg <- reactiveValues(i = NULL, width = NULL)
   groupPg <- reactiveValues(g = NULL, width = 1)
   hapPg <- reactiveValues(width = NULL)
-  srhapPg <- reactiveValues(makePlot = FALSE,
-                            num.iter = NULL,
-                            frac.burn = NULL,
-                            random.seed = NULL,
-                            prior.model = NULL)
+  srhapPg <- reactiveValues(
+    makePlot = FALSE,
+    num.iter = NULL,
+    frac.burn = NULL,
+    random.seed = NULL,
+    prior.model = NULL,
+    locus.select = NULL
+  )
 
   filterParam <- reactiveValues(minRead = 1, minAllele = 0.2)
   panelParam <- reactiveValues(
@@ -130,6 +133,7 @@ shinyServer(function(input, output, session) {
       data.frame(id = group.sorted, stringsAsFactors = F) %>% tbl_df()
     panelParam$group.label <- c("ALL", group.sorted)
     panelParam$group.label.bare <- group.sorted
+    panelParam$n.group <- length(group.sorted)
 
     panelParam$is.reject <- rep(0, panelParam$n.locus)
 
@@ -298,7 +302,7 @@ shinyServer(function(input, output, session) {
       rangesH$y <- c(0, end.indx + 1)
     }
     Filter.haplo.sum()
-    srhapPg$makePlot <- FALSE
+    #srhapPg$makePlot <- FALSE
   })
 
   observeEvent(input$locusPerDisplay, {
@@ -363,7 +367,8 @@ shinyServer(function(input, output, session) {
                 as.numeric(panelParam$n.locus) /
                   as.numeric(input$locusPerDisplay)
               ))
-        start.indx <- (as.numeric(input$locusPerDisplay) * (pg - 1)) + 1
+        start.indx <-
+          (as.numeric(input$locusPerDisplay) * (pg - 1)) + 1
         end.indx <-
           min(as.numeric(panelParam$n.locus) ,
               as.numeric(input$locusPerDisplay) * pg)
@@ -495,7 +500,8 @@ shinyServer(function(input, output, session) {
                 as.numeric(panelParam$n.indiv) /
                   as.numeric(input$indivPerDisplay)
               ))
-        start.indx <- (as.numeric(input$indivPerDisplay) * (pg - 1)) + 1
+        start.indx <-
+          (as.numeric(input$indivPerDisplay) * (pg - 1)) + 1
         end.indx <-
           min(as.numeric(panelParam$n.indiv) ,
               as.numeric(input$indivPerDisplay) * pg)
@@ -509,15 +515,16 @@ shinyServer(function(input, output, session) {
 
   observeEvent(input$submitSrMicroHap, {
     if (input$selectLocus != "ALL") {
+      srhapPg$makePlot <- TRUE
+      srhapPg$num.iter <- as.numeric(input$gibbIter)
+      srhapPg$frac.burn <- input$fracBurn
+      srhapPg$random.seed <- input$randomSeed
+      srhapPg$prior.model <- input$selectPrior
+      srhapPg$locus.select <- input$selectLocus
 
-    srhapPg$makePlot <- TRUE
-    srhapPg$num.iter <- as.numeric(input$gibbIter)
-    srhapPg$frac.burn <- input$fracBurn
-    srhapPg$random.seed <- input$randomSeed
-    srhapPg$prior.model <- input$selectPrior
-
-    Run.SrMicrohap()
-  }})
+      Run.SrMicrohap()
+    }
+  })
 
 
   haplo.summaryTbl <- reactive({
@@ -530,11 +537,14 @@ shinyServer(function(input, output, session) {
              allele.balance >= filterParam$minAllele)
 
     if (input$selectGroup != "ALL")
-      haplo.filter <- haplo.filter %>% filter(group == input$selectGroup)
+      haplo.filter <-
+      haplo.filter %>% filter(group == input$selectGroup)
     if (input$selectLocus != "ALL")
-      haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
+      haplo.filter <-
+      haplo.filter %>% filter(locus == input$selectLocus)
     if (input$selectIndiv != "ALL")
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+      haplo.filter <-
+      haplo.filter %>% filter(id == input$selectIndiv)
 
     haplo.filter <- haplo.filter %>%
       group_by(locus, id, group) %>%
@@ -593,11 +603,14 @@ shinyServer(function(input, output, session) {
       haplo.filter <- haplo.filter %>% filter(rank <= 2)
 
     if (input$selectGroup != "ALL")
-      haplo.filter <- haplo.filter %>% filter(group == input$selectGroup)
+      haplo.filter <-
+      haplo.filter %>% filter(group == input$selectGroup)
     if (input$selectLocus != "ALL")
-      haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
+      haplo.filter <-
+      haplo.filter %>% filter(locus == input$selectLocus)
     if (input$selectIndiv != "ALL")
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+      haplo.filter <-
+      haplo.filter %>% filter(id == input$selectIndiv)
 
     groupPg$width <- dim(haplo.filter)[1]
     haplo.filter
@@ -670,7 +683,7 @@ shinyServer(function(input, output, session) {
         color = frac
       )) +
       #scale_x_log10()+
-      xlab("number of unique haplotypes per individual") +
+      xlab("num of unique haplotypes \nper individual") +
       ylab("Locus ID") +
       scale_color_continuous(guide = FALSE) + #"fraction")+
       scale_size_continuous(guide = FALSE) +
@@ -728,7 +741,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(frac.calleable, aes(x = n, y = locus)) +
       geom_point() +
-      xlab("num of unique haplotypes") +
+      xlab("total # of unique haplotypes\nacross individuals") +
       ylab("") +
       scale_size_continuous(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -785,7 +798,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(frac.calleable, aes(x = f, y = locus, color = f)) +
       geom_point() +
-      xlab("fraction of indiv w/ calleable haplotype") +
+      xlab("fraction of indiv with\n calleable haplotype") +
       ylab("") +
       scale_color_continuous(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -840,7 +853,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(readDepth.perI.tbl, aes(x = locus, y = tot.depth)) +
       xlab("") +
-      ylab("read depth per individual") +
+      ylab("read depth \nper individual") +
       geom_violin() +
       geom_point(aes(x = locus, y = mean.depth),
                  cex = 3,
@@ -930,8 +943,12 @@ shinyServer(function(input, output, session) {
       ) +
       theme_bw() +
       ylab("individual ID") +
-      xlab ("depth ratio of the second common haplotype : first common haplotype") +
-      theme(legend.position = "bottom") +
+      xlab ("depth ratio of the 2nd : 1st common haplotype") +
+      theme(
+        legend.position = "bottom",
+        panel.margin = unit(0, 'mm'),
+        plot.margin = unit(c(0, 2, 0, 0), "mm")
+      ) +
       xlim(c(0, 1)) +
       ylim(indivPg$i) +
       coord_cartesian(ylim = ranges$y) +
@@ -981,7 +998,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(tot.hap.per.indiv, aes(x = n.hap.locus, y = id, size = n.locus)) +
       geom_point() +
-      xlab("num of haplotypes per locus") +
+      xlab("# of haplotype per locus") +
       ylab("") +
       scale_size_continuous(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -1007,8 +1024,6 @@ shinyServer(function(input, output, session) {
                1
              ), 250
            )))
-
-
 
   output$fracHaploPlot <- renderPlot({
     if (is.null(input$selectLocus) ||
@@ -1047,7 +1062,8 @@ shinyServer(function(input, output, session) {
       theme(
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
-        panel.margin = unit(0, 'mm')
+        panel.margin = unit(0, 'mm'),
+        plot.margin = unit(c(0, 2, 0, 0), "mm")
       ) +
       #plot.margin = unit(c(0, 0, 0, 0), "mm"))+
       ylim(indivPg$i) +
@@ -1143,7 +1159,8 @@ shinyServer(function(input, output, session) {
       theme(
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
-        panel.margin = unit(0, 'mm')
+        panel.margin = unit(0, 'mm'),
+        plot.margin = unit(c(0, 2, 0, 0), "mm")
       ) +
       #plot.margin = unit(c(0, 0, 0, 0), "mm"))+
       #scale_y_log10()+
@@ -1238,7 +1255,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(filter.tbl, aes(x = n.indiv, y = group, color = group)) +
       geom_point() +
-      xlab("num of indiv") +
+      xlab("# of\n Indiv") +
       ylab("") +
       scale_color_discrete(guide = FALSE) +
       theme_bw() +
@@ -1249,9 +1266,11 @@ shinyServer(function(input, output, session) {
         plot.margin = unit(c(0, 0, 0, 0), "mm")
       )
   }, height = function() {
-    ifelse(groupPg$width == 0,
-           0,
-           ifelse(input$selectGroup == "ALL", 300, 100))
+    ifelse(
+      groupPg$width == 0,
+      0,
+      ifelse(input$selectGroup == "ALL", 100 * panelParam$n.group, 100)
+    )
   })
 
   output$fIndivByGroupPlot <- renderPlot({
@@ -1288,7 +1307,7 @@ shinyServer(function(input, output, session) {
         pch = 3,
         cex = 3
       ) +
-      xlab("fraction of indiv w/ calleable haplotype") +
+      xlab("fraction of indiv \nw/ calleable haplotype") +
       ylab("") +
       scale_color_discrete(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -1299,9 +1318,11 @@ shinyServer(function(input, output, session) {
         plot.margin = unit(c(0, 0, 0, 0), "mm")
       )
   }, height = function() {
-    ifelse(groupPg$width == 0,
-           0,
-           ifelse(input$selectGroup == "ALL", 300, 100))
+    ifelse(
+      groupPg$width == 0,
+      0,
+      ifelse(input$selectGroup == "ALL", 100 * panelParam$n.group, 100)
+    )
   })
 
   output$nLociByGroupPlot <- renderPlot({
@@ -1315,7 +1336,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(filter.tbl, aes(x = n.locus, y = group, color = group)) +
       geom_point() +
-      xlab("num of locus") +
+      xlab("# of\n loci") +
       ylab("") +
       scale_color_discrete(guide = FALSE) +
       theme_bw() +
@@ -1326,9 +1347,11 @@ shinyServer(function(input, output, session) {
         plot.margin = unit(c(0, 0, 0, 0), "mm")
       )
   }, height = function() {
-    ifelse(groupPg$width == 0,
-           0,
-           ifelse(input$selectGroup == "ALL", 300, 100))
+    ifelse(
+      groupPg$width == 0,
+      0,
+      ifelse(input$selectGroup == "ALL", 100 * panelParam$n.group, 100)
+    )
   })
 
   output$fLociByGroupPlot <- renderPlot({
@@ -1365,7 +1388,7 @@ shinyServer(function(input, output, session) {
         pch = 3,
         cex = 3
       ) +
-      xlab("fraction of loci w/ calleable haplotype") +
+      xlab("fraction of loci \nw/ calleable haplotype") +
       ylab("") +
       scale_color_discrete(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -1376,9 +1399,11 @@ shinyServer(function(input, output, session) {
         plot.margin = unit(c(0, 0, 0, 0), "mm")
       )
   }, height = function() {
-    ifelse(groupPg$width == 0,
-           0,
-           ifelse(input$selectGroup == "ALL", 300, 100))
+    ifelse(
+      groupPg$width == 0,
+      0,
+      ifelse(input$selectGroup == "ALL", 100 * panelParam$n.group, 100)
+    )
   })
 
   #ABOUT HAPLOTYPE distribution panel
@@ -1404,11 +1429,11 @@ shinyServer(function(input, output, session) {
 
     haplo.split.profile <-
       sapply(1:nrow(haplo.profile.frac), function(i) {
-        char.split <- strsplit(haplo.profile.frac[i, ]$haplo, "")
+        char.split <- strsplit(haplo.profile.frac[i,]$haplo, "")
         #cat(file=stderr(), "character split_", unlist(char.split), "_----\n")
         n.char <- length(char.split[[1]])
         sapply(1:n.char, function(j)
-          c(i, j, char.split[[1]][j], haplo.profile.frac[i, ]$frac))
+          c(i, j, char.split[[1]][j], haplo.profile.frac[i,]$frac))
       }) %>%
       matrix(., ncol = 4, byrow = T) %>%
       as.data.frame(stringsAsFactors = FALSE) %>%
@@ -1538,9 +1563,11 @@ shinyServer(function(input, output, session) {
     #if(input$topTwo)
     haplo.filter <- haplo.filter %>% filter(rank <= 2)
     if (input$selectIndiv != "ALL")
-      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+      haplo.filter <-
+      haplo.filter %>% filter(id == input$selectIndiv)
     if (input$selectGroup != "ALL")
-      haplo.filter <- haplo.filter %>% filter(group == input$selectGroup)
+      haplo.filter <-
+      haplo.filter %>% filter(group == input$selectGroup)
 
     if (nrow(haplo.filter) == 0)
       return()
@@ -1689,7 +1716,7 @@ shinyServer(function(input, output, session) {
         haplo.summaryTable <- haplo.summaryTbl()
         n.base <- nchar(haplo.summaryTable$haplotype.1)
         haplo.all <-
-          haplo.summaryTable[rep(seq(1, nrow(haplo.summaryTable)), n.base), ] %>%
+          haplo.summaryTable[rep(seq(1, nrow(haplo.summaryTable)), n.base),] %>%
           group_by(locus, id, group) %>%
           mutate(snp.id = row_number(),
                  snp = paste0(
@@ -1697,10 +1724,7 @@ shinyServer(function(input, output, session) {
                    "/",
                    substr(haplotype.2, snp.id, snp.id)
                  )) %>%
-          select(-haplotype.1,
-                 -haplotype.2,
-                 -read.depth.1,
-                 -read.depth.2)
+          select(-haplotype.1,-haplotype.2,-read.depth.1,-read.depth.2)
         write.csv(haplo.all, file)
 
       }
@@ -1738,14 +1762,14 @@ shinyServer(function(input, output, session) {
 
     if (input$selectTbl == "observed variants") {
       haplo.all <-
-        Filter.haplo.sum() %>% rename("Individual ID" = id) %>% select(-logP.call, -logP.miscall)
+        Filter.haplo.sum() %>% rename("Individual ID" = id) %>% select(-logP.call,-logP.miscall)
     }
 
     if (input$selectTbl == "SNP report") {
       haplo.summaryTable <- haplo.summaryTbl()
       n.base <- nchar(haplo.summaryTable$haplotype.1)
       haplo.all <-
-        haplo.summaryTable[rep(seq(1, nrow(haplo.summaryTable)), n.base), ] %>%
+        haplo.summaryTable[rep(seq(1, nrow(haplo.summaryTable)), n.base),] %>%
         group_by(locus, id, group) %>%
         mutate(snp.id = row_number(),
                snp = paste0(
@@ -1753,15 +1777,12 @@ shinyServer(function(input, output, session) {
                  "/",
                  substr(haplotype.2, snp.id, snp.id)
                )) %>%
-        select(-haplotype.1,
-               -haplotype.2,
-               -read.depth.1,
-               -read.depth.2)
+        select(-haplotype.1,-haplotype.2,-read.depth.1,-read.depth.2)
     }
 
 
     output$haploTbl <- DT::renderDataTable({
-      DT::datatable(haplo.all, options = list(lengthMenu = list(c(5, 15,-1), c(
+      DT::datatable(haplo.all, options = list(lengthMenu = list(c(5, 15, -1), c(
         '5', '15', 'All'
       )),
       pageLength = 15))
@@ -1772,146 +1793,200 @@ shinyServer(function(input, output, session) {
   #Run Senor Microhap
 
   Run.SrMicrohap <- reactive({
-    if(!srhapPg$makePlot) return ()
+    if (!srhapPg$makePlot)
+      return ()
 
     haplo.sum <- update.Haplo.file()
     if (is.null(haplo.sum))
       return ()
 
-#    cat(file=stderr(), input$gibbIter, "\t", input$randomSeed,"we got stuff----\n")
+    #    cat(file=stderr(), input$gibbIter, "\t", input$randomSeed,"we got stuff----\n")
 
-    RunSrMicrohap(haplo.sum,
-                  input$selectLocus,
-                  srhapPg$num.iter,
-                  srhapPg$random.seed,
-                  srhapPg$prior.model)
+    progress <- shiny::Progress$new()
+    progress$set(message = 'Initiate sampling', value = 0.1)
+    on.exit(progress$close())
+    RunSrMicrohap(
+      haplo.sum,
+      srhapPg$locus.select,
+      srhapPg$num.iter,
+      srhapPg$random.seed,
+      srhapPg$prior.model
+    )
 
   })
 
-  output$allHapFreqPlot <- renderPlot({
-    run.result <- Run.SrMicrohap()
-    if(is.null(run.result)) return()
-
-    start.iter <- floor(run.result$n.sam * (srhapPg$frac.burn/100))
-    freq.matrix <- matrix(unlist(run.result$save.freq),
-                          byrow = T,
-                          ncol=run.result$n.haplo)[(start.iter:run.result$n.sam),]
-
-
-    if(run.result$n.haplo ==1) {
-      hap.freq.stat <- as.data.frame(t(c(quantile(freq.matrix, prob=c(0.05, 0.95) ),
-                                                           mean=mean(freq.matrix),
-                                                           hap=run.result$haplo)))
-      colnames(hap.freq.stat) <- c("X5.","X95.", "mean","hap")
-
-      ggplot(hap.freq.stat,aes(x=mean, y=hap), pch=3)+
-        geom_point()+
-        theme_bw()+
-        ylab("")+
-        xlab("overall haplotype frequency (90% CI)")
-
-    } else {
-    hap.freq.stat <- data.frame(t(apply(freq.matrix,2,
-                                                    function(x) c(quantile(x, prob=c(0.05, 0.95) ),
-                                                                  mean=mean(x)))),
-                                     hap=run.result$haplo)
-
-    ggplot(hap.freq.stat,
-           aes(y=hap, yend=hap, x=as.numeric(X5.), xend=as.numeric(X95.)))+
-      geom_segment()+
-      geom_point(data=hap.freq.stat, aes(x=mean, y=hap), pch=3)+
-      theme_bw()+
-      ylab("")+
-      xlab("overall haplotype frequency (90% CI)")
-
-    }
-
-
-  }, height = 300
-  )
+  # output$allHapFreqPlot <- renderPlot({
+  #   run.result <- Run.SrMicrohap()
+  #   if(is.null(run.result)) return()
+  #
+  # start.iter <- min(floor(run.result$n.sam * (srhapPg$frac.burn/100)),
+  #                   run.result$n.sam-2)
+  #   freq.matrix <- matrix(unlist(run.result$save.freq),
+  #                         byrow = T,
+  #                         ncol=run.result$n.haplo)[(start.iter:run.result$n.sam),]
+  #
+  #
+  #   if(run.result$n.haplo ==1) {
+  #     hap.freq.stat <- as.data.frame(t(c(quantile(freq.matrix, prob=c(0.05, 0.95) ),
+  #                                                          mean=mean(freq.matrix),
+  #                                                          hap=run.result$haplo)))
+  #     colnames(hap.freq.stat) <- c("X5.","X95.", "mean","hap")
+  #
+  #     ggplot(hap.freq.stat,aes(x=mean, y=hap), pch=3)+
+  #       geom_point()+
+  #       theme_bw()+
+  #       ylab("")+
+  #       xlab("overall haplotype frequency (90% CI)")
+  #
+  #   } else {
+  #   hap.freq.stat <- data.frame(t(apply(freq.matrix,2,
+  #                                                   function(x) c(quantile(x, prob=c(0.05, 0.95) ),
+  #                                                                 mean=mean(x)))),
+  #                                    hap=run.result$haplo)
+  #
+  #   ggplot(hap.freq.stat,
+  #          aes(y=hap, yend=hap, x=as.numeric(X5.), xend=as.numeric(X95.)))+
+  #     geom_segment()+
+  #     geom_point(data=hap.freq.stat, aes(x=mean, y=hap), pch=3)+
+  #     theme_bw()+
+  #     ylab("")+
+  #     xlab("overall haplotype frequency (90% CI)")
+  #
+  #   }
+  #
+  #
+  # }, height = function(){ifelse(srhapPg$makePlot,300,0)}
+  # )
 
   output$HapFreqByGroupPlot <- renderPlot({
     run.result <- Run.SrMicrohap()
-    if(is.null(run.result)) return()
-    if (run.result$n.haplo.pair==1) return()
+    if (is.null(run.result))
+      return()
+    #if (run.result$n.haplo.pair==1) return()
 
-    start.iter <- floor(run.result$n.sam * (srhapPg$frac.burn/100))
-    freq.matrix <- array(unlist(run.result$save.pfreq),
-                         dim=c(run.result$n.group,
-                               run.result$n.haplo,
-                               run.result$n.sam))[,,(start.iter:run.result$n.sam)]
+    start.iter <-
+      min(floor(run.result$n.sam * (srhapPg$frac.burn / 100)),
+          run.result$n.sam - 2)
+    freq.matrix <- array(
+      unlist(run.result$save.pfreq),
+      dim = c(run.result$n.group,
+              run.result$n.haplo,
+              run.result$n.sam)
+    )[, , (start.iter:run.result$n.sam)]
 
-    hap.freq.stat <- data.frame(t(apply(expand.grid(1:(run.result$n.group), 1:(run.result$n.haplo)),
-          1,
-          function(i) c(group=run.result$group[i[1]],
-                        hap=run.result$haplo[i[2]],
-                        mean=mean(freq.matrix[i[1],i[2],]),
-                        st.CI=quantile(freq.matrix[i[1],i[2],], prob=0.05),
-                        end.CI=quantile(freq.matrix[i[1],i[2],], prob=0.95))
-          )
-    ),stringsAsFactors = F)
+    hap.freq.stat <-
+      data.frame(t(apply(expand.grid(1:(run.result$n.group), 1:(run.result$n.haplo)),
+                         1,
+                         function(i)
+                           c(
+                             group = run.result$group[i[1]],
+                             hap = paste0(run.result$haplo[i[2]],
+                                          " (",
+                                          i[2],
+                                          ")",
+                                          collapse = ""),
+                             mean = mean(freq.matrix[i[1], i[2], ]),
+                             st.CI = quantile(freq.matrix[i[1], i[2], ], prob =
+                                                0.05),
+                             end.CI = quantile(freq.matrix[i[1], i[2], ], prob =
+                                                 0.95)
+                           ))), stringsAsFactors = F)
 
     ggplot(hap.freq.stat,
-           aes(y=group, yend=group, x=as.numeric(st.CI.5.), xend=as.numeric(end.CI.95.)))+
-      geom_segment()+
-      facet_grid(hap ~ .,space = "free")+ #space = "free" #scales="free"
-      theme(strip.text.y = element_text(angle=0))+
-      geom_point(data=hap.freq.stat, aes(x=as.numeric(mean), y=group), pch=3)+
-      ylab("")+
+           aes(
+             y = group,
+             yend = group,
+             x = as.numeric(st.CI.5.),
+             xend = as.numeric(end.CI.95.)
+           )) +
+      geom_segment() +
+      facet_grid(hap ~ ., space = "free") + #space = "free" #scales="free"
+      theme(strip.text.y = element_text(angle = 0)) +
+      geom_point(data = hap.freq.stat,
+                 aes(x = as.numeric(mean), y = group),
+                 pch = 3) +
+      ylab("") +
       xlab("overall haplotype frequency (90% CI)")
 
-  }, height = 300
-  )
+  }, height = function() {
+    ifelse(srhapPg$makePlot, 300, 0)
+  })
 
 
   output$indivHapPosPlot <- renderPlot({
     run.result <- Run.SrMicrohap()
-    if(is.null(run.result)) return()
-    if (run.result$n.haplo.pair==1) return()
+
+    progress <- shiny::Progress$new()
+    progress$set(message = 'Generate figures', value = 0.5)
+    on.exit(progress$close())
+
+    if (is.null(run.result))
+      return()
+    if (run.result$n.haplo.pair == 1)
+      return()
 
 
-    start.iter <- floor(run.result$n.sam * (srhapPg$frac.burn/100))
-    freq.matrix <- array(unlist(run.result$save.hap),
-                         dim=c(run.result$n.indiv,
-                               run.result$n.haplo,
-                               run.result$n.sam))[,,(start.iter:run.result$n.sam)]
-    length.iter <- run.result$n.sam-start.iter+1
+    start.iter <-
+      min(floor(run.result$n.sam * (srhapPg$frac.burn / 100)),
+          run.result$n.sam - 2)
+    freq.matrix <- array(
+      unlist(run.result$save.hap),
+      dim = c(run.result$n.indiv,
+              run.result$n.haplo,
+              run.result$n.sam)
+    )[, , (start.iter:run.result$n.sam)]
+    length.iter <- run.result$n.sam - start.iter + 1
 
-    ref.hap.matrix <- matrix(0, nrow=run.result$n.haplo.pair, ncol=run.result$n.haplo)
-    ref.hap.matrix[cbind(1:run.result$n.haplo.pair, run.result$haplo.pair[,1])] <- 1
-    ref.hap.matrix[cbind(1:run.result$n.haplo.pair, run.result$haplo.pair[,2])] <- 1 + ref.hap.matrix[cbind(1:run.result$n.haplo.pair, run.result$haplo.pair[,2])]
+    ref.hap.matrix <-
+      matrix(0, nrow = run.result$n.haplo.pair, ncol = run.result$n.haplo)
+    ref.hap.matrix[cbind(1:run.result$n.haplo.pair, run.result$haplo.pair[, 1])] <-
+      1
+    ref.hap.matrix[cbind(1:run.result$n.haplo.pair, run.result$haplo.pair[, 2])] <-
+      1 + ref.hap.matrix[cbind(1:run.result$n.haplo.pair, run.result$haplo.pair[, 2])]
 
-    ref.hap.str <- apply(ref.hap.matrix,1,function(x)paste(x,collapse = ""))
+    ref.hap.str <-
+      apply(ref.hap.matrix, 1, function(x)
+        paste(x, collapse = ""))
 
-    ref.hap.label <- as.vector(apply(run.result$haplo.pair,1, function(x)paste(x, collapse="/")))
+    ref.hap.label <-
+      as.vector(apply(run.result$haplo.pair, 1, function(x)
+        paste(x, collapse = "/")))
     names(ref.hap.label) <- ref.hap.str
 
 
-    sample.hap.df <- lapply(1:run.result$n.indiv, function(i){
-      data.frame(indiv=i,
-                 table(apply(freq.matrix[i,,],
-            2,
-            function(x) ref.hap.label[paste(x,collapse = "")])), stringsAsFactors = F)
+    sample.hap.df <- lapply(1:run.result$n.indiv, function(i) {
+      data.frame(indiv = i,
+                 table(apply(freq.matrix[i, , ],
+                             2,
+                             function(x)
+                               ref.hap.label[paste(x, collapse = "")])),
+                 stringsAsFactors = F)
     }) %>% bind_rows()
 
     sample.hap.df <- sample.hap.df %>%
-      mutate(posterior = Freq /length.iter,
-             indiv.id = run.result$indiv.id[indiv],
-             group = run.result$group[run.result$grp.assoc.indiv[indiv]])
+      mutate(
+        posterior = Freq / length.iter,
+        indiv.id = run.result$indiv.id[indiv],
+        group = run.result$group[run.result$grp.assoc.indiv[indiv]]
+      )
 
     ggplot(sample.hap.df,
-           aes(x=Var1, y=indiv.id, fill=posterior))+
-      geom_tile()+
-      facet_grid(group ~ .,space = "free",scales = "free_y")+
-      geom_text(aes(label=round(posterior,2 )))+
-      theme_bw()+
-      scale_fill_gradient(low = "white", high = "light green", guide=F)+
-      ylab("")+
+           aes(x = Var1, y = indiv.id, fill = posterior)) +
+      geom_tile() +
+      facet_grid(group ~ ., space = "free", scales = "free_y") +
+      geom_text(aes(label = round(posterior, 2))) +
+      theme_bw() +
+      scale_fill_gradient(low = "white",
+                          high = "light green",
+                          guide = F) +
+      ylab("") +
       xlab("haplotype pair")
 
-  }, height = function(){
-    max(10 * panelParam$tot.indiv,
-               450)}
-  )
+  }, height = function() {
+    ifelse(srhapPg$makePlot,
+           max(10 * panelParam$tot.indiv,
+               450),
+           0)
+  })
 
 })

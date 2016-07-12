@@ -128,7 +128,7 @@ shinyUI(
                   "",
                   min = 0,
                   max = 200,
-                  value = 1
+                  value = 0
                 )),
                 column(3, "Min allelic ratio:", style = "margin-top:40px;padding-left:40px;font-weight:bold"),
                 column(3, sliderInput(
@@ -136,7 +136,7 @@ shinyUI(
                   "",
                   min = 0,
                   max = 1,
-                  value = 0.2
+                  value = 0
                 )),
                 style = "padding: 0 0 0 0; margin: -1% 0 0 0;"
               ),
@@ -487,69 +487,88 @@ shinyUI(
         fluidRow(
           div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
         )
-        ),
-
-      tabPanel("SrMicroHap",
-               "SrMicroHap is sensitive only to the changes in \"Locus\" selector tab\n",
-               wellPanel(
-               fluidRow(column(12,
-                               column(
-                                 3, sliderInput(
-                                   "gibbIter",
-                                   "Number of Iterations:",
-                                   min = 1,
-                                   max = 10000,
-                                   value = 1000
-                                 )),
-                               column(3,sliderInput(
-                                 "fracBurn",
-                                 "% for Burn-in",
-                                 min = 0,
-                                 max = 100,
-                                 value = 0
-                               )),
-                               column(2, numericInput(
-                                 "randomSeed",
-                                 label = "Random Seed",
-                                 value = 34532,
-                                 min = 1,
-                                 step = 1
-                               )),
-                               column(2,
-                                      selectInput("selectPrior",
-                                                  label = "Prior Model",
-                                                  c("uniform","empirical"), selected = "empirical")
-                                      ),
-                               column(1,
-                                      actionButton("submitSrMicroHap",
-                                                   "Submit", icon("random"),
-                                                   style = "margin-top:20px; padding-right: 0px;",
-                                                   width="200%"
-                                      ))
-                               )
-               )),
-               fluidRow(
-                 column(12, plotOutput("allHapFreqPlot", height = "auto")),
-                 column(12, plotOutput("HapFreqByGroupPlot", height = "auto")),
-                 column(12, plotOutput("indivHapPosPlot", height = "auto"))
-
-               ),
-               fluidRow(
-                 div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
-               )
-               ),
-
-        position = "fixed-bottom"
       ),
-      #tags$style(type="text/css", "navbar-static-top{z-index: -1}")),
-      #,style="border-right:2px solid grey;"),
-      #column(5, DT::dataTableOutput('haploFreqTbl'), offset=2),
-      #column(12),
-      #div(
-      #  style="padding: 10px; border-bottom: 8px solid white; background: white"
-      #),
-      #column(4, DT::dataTableOutput('haploSummary')),
-      titlePanel("", windowTitle = "HapPLOType: a view to your haplotypes")
 
-    )
+      tabPanel(
+        "SrMicroHap",
+        "SrMicroHap is sensitive only to the changes in \"Locus\" selector tab\n",
+        wellPanel(fluidRow(
+          column(
+            12,
+            column(
+              3,
+              sliderInput(
+                "gibbIter",
+                "Number of Iterations:",
+                min = 1,
+                max = 10000,
+                value = 1000
+              )
+            ),
+            column(
+              3,
+              sliderInput(
+                "fracBurn",
+                "% for Burn-in",
+                min = 0,
+                max = 99,
+                value = 0
+              )
+            ),
+            column(
+              2,
+              numericInput(
+                "randomSeed",
+                label = "Random Seed",
+                value = 34532,
+                min = 1,
+                step = 1
+              )
+            ),
+            column(
+              2,
+              selectInput(
+                "selectPrior",
+                label = "Prior Model",
+                c("uniform", "empirical"),
+                selected = "empirical"
+              )
+            ),
+            column(
+              1,
+              actionButton(
+                "submitSrMicroHap",
+                "Submit",
+                icon("random"),
+                style = "margin-top:20px; padding-right: 0px;",
+                width = "200%"
+              )
+            )
+          )
+        )),
+        fluidRow(column(
+          12, plotOutput("indivHapPosPlot", height = "auto")
+        ),
+        #column(12, plotOutput("allHapFreqPlot", height = "auto")),
+        column(
+          12, plotOutput("HapFreqByGroupPlot", height = "auto")
+        )),
+        fluidRow(
+          div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
+        )
+      ),
+
+      position = "fixed-bottom"
+    ),
+    #tags$style(type="text/css", "navbar-static-top{z-index: -1}")),
+    #,style="border-right:2px solid grey;"),
+    #column(5, DT::dataTableOutput('haploFreqTbl'), offset=2),
+    #column(12),
+    #div(
+    #  style="padding: 10px; border-bottom: 8px solid white; background: white"
+    #),
+    #column(4, DT::dataTableOutput('haploSummary')),
+    titlePanel("", windowTitle = "HapPLOType: a view to your haplotypes")
+
   )
+)
