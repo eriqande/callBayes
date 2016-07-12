@@ -2,12 +2,14 @@
 # Testing set:
 # haplo.sum<- readRDS("data/satro_sample/example_1.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
 # colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
-# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_1377", 2)
+# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_143", 2000)
 
 # haplo.tbl <- haplo.sum
-# locus <- "tag_id_1377"
+# locus <- "tag_id_143"
 # prior.model<-"uniform"
-# n.sam <- 20
+# n.sam <- 2000
+# random.seed <- 43454
+#@param n.burn integer. number of burn-in cycle. n.burn < n.sample. Default sets as 0. Optional.
 
 #' Microhaplotype sampler
 #'
@@ -16,14 +18,13 @@
 #'  "locus" label, observed "haplo"type, haplotype read "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank", etc.
 #' @param locus string. the locus name. Required
 #' @param n.sample integer. number of iterations. required
-#' @param n.burn integer. number of burn-in cycle. n.burn < n.sample. Default sets as 0. Optional.
 #' @param random.seed integer. Set the random seed number. Default sets as 43454. Optional
 #' @param prior.model String. Choose two different prior models: "uniform" - prior set all prior haplotype weight to 1, or "empirical": the prior
 #' alpha values are defined by the number of observed cases under refinement
 #' @export
 #' @examples
 #' # collect.data <- RunSrMicrohap(haplo.sum, "tag_id_1377", 2)
-RunSrMicrohap <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454, prior.model="uniform")
+RunSrMicrohap <- function(haplo.tbl, locus, n.sam, random.seed = 43454, prior.model="uniform")
 {
   set.seed(random.seed)
 
@@ -31,7 +32,9 @@ RunSrMicrohap <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454
   haplo.tbl <- tidyHaplo(haplo.tbl, locus)
 
   #initialize parameters
-  param <- setParam(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model)
+  param <- setParam(haplo.tbl, locus, n.sam, random.seed, prior.model)
+
+  if(is.null(param)) return()
 
   #precompute all
   match.matrix <- PreComputeMatching(param, haplo.tbl)
@@ -48,13 +51,6 @@ RunSrMicrohap <- function(haplo.tbl, locus, n.sam, n.burn=0, random.seed = 43454
     param$save.hap[[i]] <- param$h
   }
 
-  ### clean out the burn-in steps
-  # if (n.burn > 0) {
-  # param$save.freq <- param$save.freq[,-(1:n.burn)]
-  # param$save.pfreq <- param$save.pfreq[,,-(1:n.burn)]
-  # param$save.hap <- param$save.hap[,,-(1:n.burn)]
-  # }
-
   return(param)
 }
 
@@ -69,15 +65,15 @@ tidyHaplo <- function(haplo.tbl, locus.select) {
     dplyr::mutate(uniq.id = as.numeric(factor(id, levels=unique(haplo.tbl$id))))
 }
 
-setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
+setParam <- function(haplo.tbl, locus, n.sam, random.seed, prior.model){
 
   param <- NULL
 
   param$locus.select <- locus
   param$n.sam <- n.sam
-  param$n.burn <- n.burn
   param$random.seed <- random.seed
   param$prior.model <- prior.model
+  param$indiv.id <- unique(haplo.tbl$id)
 
   param$group <- unique(haplo.tbl$group)
   param$n.group <- length(param$group)
@@ -95,6 +91,11 @@ setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
     #dplyr::filter(!grepl("[N]", haplo)) %>%
     dplyr::group_by(haplo) %>%
     dplyr::summarise(count=n())
+
+  if (is.null(all.haplotype$haplo) || dim(all.haplotype)[1]==0) {
+    cat("No good haplotype candidate")
+    return()
+  }
 
   # this section removes any true haplotype with unnecessary "N" variant sites
   haplo.char <- matrix(unlist(strsplit(unique(all.haplotype$haplo), "")),
@@ -126,8 +127,15 @@ setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
   param$haplo.ct <- pass.ct
   param$n.haplo <- length(all.haplotype$haplo)
 
+  cat("number of haplotype pair:",param$n.haplo,"\n")
 
+
+  if (param$n.haplo > 1) {
   param$haplo.pair <- rbind(t(combn(1:param$n.haplo, 2)), matrix(rep(1:param$n.haplo,2), ncol=2))
+  } else {
+    param$haplo.pair <- matrix(rep(1:param$n.haplo,2), ncol=2)
+  }
+
   param$n.haplo.pair <- dim(param$haplo.pair)[1]
 
   ###cache the draw
@@ -151,6 +159,8 @@ setParam <- function(haplo.tbl, locus, n.sam, n.burn, random.seed, prior.model){
     haplo.ct[is.na(haplo.ct)] <- 0
     gtools::rdirichlet(1, haplo.ct$count+1)
   }))
+
+  if(param$n.haplo.pair==1) param$pf <- t(param$pf)
 
 
   param$h <- array(0, dim=c(param$n.indiv, param$n.haplo))
@@ -202,21 +212,30 @@ PreComputeMatching <- function(param, haplo.tbl){
       logI.matrix * (sites.matrix!=ref.matrix))
   })
 
-  exact.match <- sapply(1:param$n.haplo, function(i){
-    haplo.tbl$haplo==param$haplo[i]
-  })
 
   # impose that any observed haplotype that completely matches with one of the reference haplotype MUST
   # derived from that reference haplotype, thus ignore the possibility that observed haplotype
   # could generated from genotype error
 
-  exact.match.pair.haplo <- exact.match %*% param$indic.combn > 0
+  # NOTE: This assumption should be relaxed especially for unbalanced reads
 
-  logP.match.by.indiv <- (exact.match.pair.haplo *
-                            rowSums(logP.read.match.ref *exact.match) *
-                            2 ) + (
-                              (!exact.match.pair.haplo) *
-                                (logP.read.match.ref %*% param$indic.combn))
+  # exact.match <- sapply(1:param$n.haplo, function(i){
+  #   haplo.tbl$haplo==param$haplo[i]
+  # })
+  #
+  # exact.match.pair.haplo <- exact.match %*% param$indic.combn > 0
+  #
+  # logP.match.by.indiv <- (exact.match.pair.haplo *
+  #                           rowSums(logP.read.match.ref *exact.match) *
+  #                           2 ) + (
+  #                             (!exact.match.pair.haplo) *
+  #                               (logP.read.match.ref %*% param$indic.combn))
+
+
+  logP.coefficient <- param$indic.combn
+  logP.coefficient[logP.coefficient==1]<-log(2)/2
+  logP.match.by.indiv <- logP.read.match.ref %*% logP.coefficient
+
 
 
   # Summing all log P by individual
@@ -234,14 +253,23 @@ UpdateF <- function(param){
 }
 
 UpdatePf <- function(param, haplo.tbl){
+
+  if (param$n.haplo.pair > 1) {
   t(sapply(1:param$n.group, function(i) {
     gtools::rdirichlet(1, colSums(param$h[param$grp.assoc.indiv==i,])+param$f)
-  }))
+  })) } else {
+    t(sapply(1:param$n.group, function(i) {
+      gtools::rdirichlet(1, sum(param$h[param$grp.assoc.indiv==i,])+param$f)
+    }))
+  }
 }
 
 UpdateH <- function(param, match.matrix){
 
-  logP.contrib.pf <- param$pf %*% param$indic.combn %>%
+  pf <- param$pf
+  if(param$n.haplo.pair==1) pf <- t(pf)
+
+  logP.contrib.pf <- pf %*% param$indic.combn %>%
     .[param$grp.assoc.indiv,] %>%
     log
 
@@ -251,6 +279,8 @@ UpdateH <- function(param, match.matrix){
   prob.distrib <- t(apply(logP.h, 1, function(i) {
     exp(i-max(i))
   }))
+
+  if(param$n.haplo.pair==1) prob.distrib <- t(prob.distrib)
 
   pair.indx <- sapply(1:param$n.indiv, function(i){
     sample(param$n.haplo.pair,1, prob=prob.distrib[i,])
