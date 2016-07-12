@@ -216,7 +216,7 @@ shinyUI(
         "Individual",
         fluidRow(
           column(
-            4,
+            3,
             column(3, h5("Indiv:"), offset = 0),
             column(9, h5(textOutput("indivSelect")), style =
                      "margin-left: 0px; color:grey")
@@ -314,7 +314,7 @@ shinyUI(
         "Locus",
         fluidRow(
           column(
-            4,
+            3,
             column(3, h5("Locus:"), offset = 0),
             column(9, h5(textOutput("locusSelect")), style =
                      "margin-left: 0px; color:grey")
@@ -457,11 +457,11 @@ shinyUI(
       tabPanel(
         "Table",
         fluidRow(column(
-          4,
-          column(5, h5("Select Table:"), offset =
+          6,
+          column(4, h5("Select Table:"), offset =
                    0),
           column(
-            7,
+            8,
             selectInput(
               "selectTbl",
               label = "",
@@ -471,12 +471,12 @@ shinyUI(
             style = "padding-right: 0px; margin-top:-20px;margin-bottom:-20px;padding-left:0%; padding-right: 0px;"
           )
         ),
-        column(3, column(
+        column(6, column(
           12,
           column(6, actionButton('updateTable', 'Update')),
           column(6, downloadButton('downloadData', 'Download'))
         )),
-        style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 40px; padding-top:15px; padding-bottom:20px"
+        style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 40px; padding-top:15px; padding-bottom:20px"),
 
         #style = "border-bottom: 2px dashed #d9d9d9; border-top: 2px dashed #d9d9d9; margin-bottom: 5px; margin-top: 10px; padding-bottom: 15px; padding-top:15px"),
 
@@ -488,6 +488,57 @@ shinyUI(
           div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
         )
         ),
+
+      tabPanel("SrMicroHap",
+               "SrMicroHap is sensitive only to the changes in \"Locus\" selector tab\n",
+               wellPanel(
+               fluidRow(column(12,
+                               column(
+                                 3, sliderInput(
+                                   "gibbIter",
+                                   "Number of Iterations:",
+                                   min = 1,
+                                   max = 10000,
+                                   value = 1000
+                                 )),
+                               column(3,sliderInput(
+                                 "fracBurn",
+                                 "% for Burn-in",
+                                 min = 0,
+                                 max = 100,
+                                 value = 0
+                               )),
+                               column(2, numericInput(
+                                 "randomSeed",
+                                 label = "Random Seed",
+                                 value = 34532,
+                                 min = 1,
+                                 step = 1
+                               )),
+                               column(2,
+                                      selectInput("selectPrior",
+                                                  label = "Prior Model",
+                                                  c("uniform","empirical"), selected = "empirical")
+                                      ),
+                               column(1,
+                                      actionButton("submitSrMicroHap",
+                                                   "Submit", icon("random"),
+                                                   style = "margin-top:20px; padding-right: 0px;",
+                                                   width="200%"
+                                      ))
+                               )
+               )),
+               fluidRow(
+                 column(12, plotOutput("allHapFreqPlot", height = "auto")),
+                 column(12, plotOutput("HapFreqByGroupPlot", height = "auto")),
+                 column(12, plotOutput("indivHapPosPlot", height = "auto"))
+
+               ),
+               fluidRow(
+                 div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
+               )
+               ),
+
         position = "fixed-bottom"
       ),
       #tags$style(type="text/css", "navbar-static-top{z-index: -1}")),
