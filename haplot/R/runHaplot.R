@@ -81,6 +81,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
   if (dim(read.label)[2]<3) stop(label.path, "contains less than 3 columns.")
 
 
+  i <- 1
   garb <- apply(read.label, 1, function(line) {
     if(!file.exists(paste0(sam.path,"/",line[1]))) stop("the sam file, ", sam.path,"/",line[1], ", does not exist")
     run.perl.script <- paste0("perl ", haptureDir,
@@ -88,7 +89,8 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
       " -s ", sam.path, "/", line[1],
       " -i ", line[2],
       " -g ", line[3], " > ",
-      out.path, "/intermed/", run.label, "_", line[2],".summary &");
+      out.path, "/intermed/", run.label, "_", line[2],"_",i,".summary &");
+    i <<- i+1
     write(run.perl.script,
       file=paste0(out.path, "/runHapture.sh"),
       append=T)
@@ -129,7 +131,6 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
       dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall, pos) }
   else {
     haplo.cleanup <- haplo.sum %>% dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall,pos)}
-
 
   haplo.add.balance <- haplo.cleanup %>%
     dplyr::group_by(locus,id) %>%
