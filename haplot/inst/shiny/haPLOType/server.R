@@ -72,10 +72,11 @@ shinyServer(function(input, output, session) {
     frac.burn = NULL,
     random.seed = NULL,
     prior.model = NULL,
-    locus.select = NULL
+    locus.select = NULL,
+    min.read.depth = NULL
   )
 
-  filterParam <- reactiveValues(minRead = 1, minAllele = 0.2)
+  filterParam <- reactiveValues(minRead = 0, minAllele = 0)
   panelParam <- reactiveValues(
     n.locus = NULL,
     n.indiv = NULL,
@@ -521,6 +522,7 @@ shinyServer(function(input, output, session) {
       srhapPg$random.seed <- input$randomSeed
       srhapPg$prior.model <- input$selectPrior
       srhapPg$locus.select <- input$selectLocus
+      srhapPg$min.read.depth <- input$coverageMin
 
       Run.SrMicrohap()
     }
@@ -1810,7 +1812,8 @@ shinyServer(function(input, output, session) {
       srhapPg$locus.select,
       srhapPg$num.iter,
       srhapPg$random.seed,
-      srhapPg$prior.model
+      srhapPg$prior.model#,
+      #srhapPg$min.read.depth
     )
 
   })
@@ -1867,6 +1870,8 @@ shinyServer(function(input, output, session) {
     start.iter <-
       min(floor(run.result$n.sam * (srhapPg$frac.burn / 100)),
           run.result$n.sam - 2)
+
+
     freq.matrix <- array(
       unlist(run.result$save.pfreq),
       dim = c(run.result$n.group,
@@ -1874,6 +1879,8 @@ shinyServer(function(input, output, session) {
               run.result$n.sam)
     )[, , (start.iter:run.result$n.sam)]
 
+    #cat(file=stderr(), dim(freq.matrix),"<- freq matrix----\n")
+    if(run.result$n.group > 1) {
     hap.freq.stat <-
       data.frame(t(apply(expand.grid(1:(run.result$n.group), 1:(run.result$n.haplo)),
                          1,
@@ -1891,6 +1898,26 @@ shinyServer(function(input, output, session) {
                              end.CI = quantile(freq.matrix[i[1], i[2], ], prob =
                                                  0.95)
                            ))), stringsAsFactors = F)
+    }
+    else{
+      hap.freq.stat <-
+        data.frame(t(apply(expand.grid(1:(run.result$n.group), 1:(run.result$n.haplo)),
+                           1,
+                           function(i)
+                             c(
+                               group = run.result$group[i[1]],
+                               hap = paste0(run.result$haplo[i[2]],
+                                            " (",
+                                            i[2],
+                                            ")",
+                                            collapse = ""),
+                               mean = mean(freq.matrix[i[2], ]),
+                               st.CI = quantile(freq.matrix[i[2], ], prob =
+                                                  0.05),
+                               end.CI = quantile(freq.matrix[i[2], ], prob =
+                                                   0.95)
+                             ))), stringsAsFactors = F)
+    }
 
     ggplot(hap.freq.stat,
            aes(
@@ -1970,9 +1997,27 @@ shinyServer(function(input, output, session) {
         group = run.result$group[run.result$grp.assoc.indiv[indiv]]
       )
 
+    # gather empiricial result for comparison
+    haplo.filter <- update.Haplo.file() %>%
+      filter(locus == input$selectLocus,
+             depth >=filterParam$minRead,
+             rank <= 2,
+             allele.balance >= filterParam$minAllele) %>%
+      group_by(group, id) %>%
+      arrange(-depth) %>%
+      summarise(
+        haplotype.pair = ifelse(length(depth) == 1,
+                             paste0(sum(which(run.result$haplo==haplo[1])),
+                                    "/",
+                                    sum(which(run.result$haplo==haplo[1]))),
+                             paste0(sort(c(sum(which(param$haplo==haplo[1])),
+                                                  sum(which(param$haplo==haplo[2])))),
+                                           collapse = "/")))
+
     ggplot(sample.hap.df,
            aes(x = Var1, y = indiv.id, fill = posterior)) +
       geom_tile() +
+      geom_tile(data=haplo.filter, aes(y=id, x=haplotype.pair), fill=NA, color="purple",lwd=1)+
       facet_grid(group ~ ., space = "free", scales = "free_y") +
       geom_text(aes(label = round(posterior, 2))) +
       theme_bw() +
@@ -1984,7 +2029,7 @@ shinyServer(function(input, output, session) {
 
   }, height = function() {
     ifelse(srhapPg$makePlot,
-           max(10 * panelParam$tot.indiv,
+           max(15 * panelParam$tot.indiv,
                450),
            0)
   })
