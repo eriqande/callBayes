@@ -1,12 +1,12 @@
 
 
 # Testing set:
-# haplo.sum<- readRDS("data/satro_sample/example_1.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
+# haplo.sum<- readRDS("data/satro_sample/satrovirens_7_19_16.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
 # colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
-# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_143", 2000)
+# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_1511", 2000)
 
 # haplo.tbl <- haplo.sum
-# locus <- "tag_id_143"
+# locus <- "tag_id_1511"
 # prior.model<-"uniform"
 # n.sam <- 2000
 # random.seed <- 43454
@@ -22,20 +22,21 @@
 #' @param random.seed integer. Set the random seed number. Default sets as 43454. Optional
 #' @param prior.model String. Choose two different prior models: "uniform" - prior set all prior haplotype weight to 1, or "empirical": the prior
 #' alpha values are defined by the number of observed cases under refinement
+#' @param min.read.depth integer. Set minimal read depth. Default as 0, as no minimal.
 #' @export
 #' @examples
 #' # collect.data <- RunSrMicrohap(haplo.sum, "tag_id_1377", 2)
-RunSrMicrohap <-
-  function(haplo.tbl,
+RunSrMicrohap <- function(haplo.tbl,
            locus,
            n.sam,
            random.seed = 43454,
-           prior.model = "uniform")
+           prior.model = "uniform",
+           min.read.depth = 0)
   {
     set.seed(random.seed)
 
     # reformat haplot.tbl
-    haplo.tbl <- tidyHaplo(haplo.tbl, locus)
+    haplo.tbl <- tidyHaplo(haplo.tbl, locus, min.read.depth)
 
     #initialize parameters
     param <-
@@ -62,14 +63,15 @@ RunSrMicrohap <-
     return(param)
   }
 
-tidyHaplo <- function(haplo.tbl, locus.select) {
+tidyHaplo <- function(haplo.tbl, locus.select, min.read.depth) {
   haplo.tbl <- haplo.tbl %>% dplyr::filter(locus == locus.select)
   n.sites <- nchar(haplo.tbl$haplo[1])
   haplo.tbl %>%
     #tidyr::separate(haplo, paste0("haplo.",1:n.sites), sep="(?!^)", extra="drop", remove=F) %>%
     #tidyr::separate(logP.call, paste0("logC.",1:n.sites), sep=",") %>%
     #tidyr::separate(logP.miscall, paste0("logW.",1:n.sites), sep=",") %>%
-    dplyr::mutate(uniq.id = as.numeric(factor(id, levels = unique(haplo.tbl$id))))
+    dplyr::mutate(uniq.id = as.numeric(factor(id, levels = unique(haplo.tbl$id)))) %>%
+    filter(depth >= min.read.depth)
 }
 
 setParam <-
@@ -102,7 +104,6 @@ setParam <-
       #dplyr::filter(!grepl("[N]", haplo)) %>%
       dplyr::group_by(haplo) %>%
       dplyr::summarise(count = n())
-
 
     if (is.null(all.haplotype$haplo) || dim(all.haplotype)[1] == 0) {
       cat("No good haplotype candidate")
@@ -254,8 +255,45 @@ PreComputeMatching <- function(param, haplo.tbl) {
     )
   })
 
+  P.read.match.ref <- exp(logP.read.match.ref)
   logP.coefficient <- param$indic.combn
-  logP.coefficient[logP.coefficient == 1] <- log(2) / 2
+  logP.coefficient[logP.coefficient == 1] <- 1/2
+  logP.coefficient[logP.coefficient == 2] <- 1
+  logP.match.by.indiv <- log(P.read.match.ref %*% logP.coefficient)
+  logP.match.by.indiv[is.infinite(logP.match.by.indiv)] <- min(logP.read.match.ref)
+
+  logP.match.by.indiv <-  logP.match.by.indiv * haplo.tbl$depth
+
+
+  # impose an assumption that for an heterzygous haplotype individual, an observed haplotype must
+  # derived from only one of the best matched haplotype, instead of mixture prob from both haplotype
+
+  # indx.to.first.hap <- matrix(0, nrow = param$n.haplo , ncol = param$n.haplo.pair)
+  # indx.to.first.hap[cbind(param$haplo.pair[, 1],
+  #                         1:param$n.haplo.pair)] <- 1
+  # logP.match.first.hap <- logP.read.match.ref %*% indx.to.first.hap
+  #
+  # indx.to.second.hap <- matrix(0, nrow = param$n.haplo , ncol = param$n.haplo.pair)
+  # indx.to.second.hap[cbind(param$haplo.pair[, 2],
+  #                         1:param$n.haplo.pair)] <- 1
+  # logP.match.second.hap <- logP.read.match.ref %*% indx.to.second.hap
+  #
+  # min.P.indic <- (logP.match.first.hap >= logP.match.second.hap)
+  #
+  # logP.sel.best.hap <- 2*(logP.match.first.hap * (min.P.indic*1) +
+  #   logP.match.second.hap * 1-(min.P.indic*1))
+  #
+  # logP.match.by.indiv <- logP.sel.best.hap #+
+  #   matrix(log(2) * (param$haplo.pair[,1]!=param$haplo.pair[,2]),
+  #                                                   ncol=param$n.haplo.pair,
+  #                                                   nrow=n.reads,
+  #                                                   byrow = T)
+
+
+  #logP.coefficient[logP.coefficient == 1] <- log(2)/2
+  #logP.match.by.indiv <- (logP.read.match.ref %*% logP.coefficient)
+
+
 
   # impose that any observed haplotype that completely matches with one of the reference haplotype MUST
   # derived from that reference haplotype, thus ignore the possibility that observed haplotype
@@ -280,7 +318,6 @@ PreComputeMatching <- function(param, haplo.tbl) {
   #                             (!exact.match.pair.haplo) *
   #                               (logP.read.match.ref %*% logP.coefficient))
 
-  logP.match.by.indiv <- logP.read.match.ref %*% logP.coefficient
 
 
   # Summing all log P by individual
