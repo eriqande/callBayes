@@ -3,13 +3,14 @@
 # Testing set:
 # haplo.sum<- readRDS("data/satro_sample/satrovirens_7_19_16.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
 # colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
-# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_1511", 2000)
-
+# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_2157", 2000)
+#
 # haplo.tbl <- haplo.sum
 # locus <- "tag_id_1511"
 # prior.model<-"uniform"
 # n.sam <- 2000
 # random.seed <- 43454
+# min.read.depth <- 0
 #@param n.burn integer. number of burn-in cycle. n.burn < n.sample. Default sets as 0. Optional.
 
 #' Microhaplotype sampler
@@ -186,7 +187,6 @@ setParam <-
     if (param$n.haplo.pair == 1)
       param$pf <- t(param$pf)
 
-
     param$h <- array(0, dim = c(param$n.indiv, param$n.haplo))
 
     haplo.select <- haplo.tbl %>%
@@ -226,7 +226,6 @@ setParam <-
       param$indic.combn[cbind(param$haplo.pair[, 2],
                               1:param$n.haplo.pair)] + 1
 
-
     return(param)
   }
 
@@ -235,11 +234,22 @@ PreComputeMatching <- function(param, haplo.tbl) {
     strsplit(haplo.tbl$haplo, "") %>% unlist %>% matrix(ncol = param$n.sites, byrow =
                                                           T)
   logC.matrix <-
-    strsplit(haplo.tbl$logP.call, ",") %>% unlist %>% as.numeric() %>% matrix(ncol =
-                                                                                param$n.sites, byrow = T)
-  logI.matrix <-
-    strsplit(haplo.tbl$logP.miscall, ",") %>% unlist %>% as.numeric() %>% matrix(ncol =
-                                                                                   param$n.sites, byrow = T)
+    strsplit(haplo.tbl$logP.call, ",") %>%
+    unlist %>%
+    as.numeric() %>%
+    matrix(ncol = param$n.sites, byrow = T)
+
+  # assume the phred call for reads with the same haplotype variant sites
+  # more or less the same
+  logC.matrix <- logC.matrix / haplo.tbl$depth
+
+  # logI.matrix <-
+  #   strsplit(haplo.tbl$logP.miscall, ",") %>% unlist %>% as.numeric() %>% matrix(ncol =
+  #                                                                                  param$n.sites, byrow = T)
+  #
+  # logI.matrix <- logI.matrix /haplo.tbl$depth
+  logI.matrix <- log(1-exp(logC.matrix))
+
 
   n.reads <- dim(haplo.tbl)[1]
 
@@ -255,15 +265,25 @@ PreComputeMatching <- function(param, haplo.tbl) {
     )
   })
 
+  depth <- matrix(rep(haplo.tbl$depth, param$n.haplo.pair),
+                  ncol=param$n.haplo.pair,
+                  byrow = F)
+
   P.read.match.ref <- exp(logP.read.match.ref)
+
   logP.coefficient <- param$indic.combn
   logP.coefficient[logP.coefficient == 1] <- 1/2
   logP.coefficient[logP.coefficient == 2] <- 1
-  logP.match.by.indiv <- log(P.read.match.ref %*% logP.coefficient)
+
+  logP.match.by.indiv <- log((P.read.match.ref  %*% logP.coefficient)) * depth
+
   logP.match.by.indiv[is.infinite(logP.match.by.indiv)] <- min(logP.read.match.ref)
 
-  logP.match.by.indiv <-  logP.match.by.indiv * haplo.tbl$depth
 
+
+  # depth[,colSums(param$indic.combn==2)==1] <- 1
+  #
+  # logP.match.by.indiv <-  logP.match.by.indiv * depth
 
   # impose an assumption that for an heterzygous haplotype individual, an observed haplotype must
   # derived from only one of the best matched haplotype, instead of mixture prob from both haplotype
@@ -280,10 +300,12 @@ PreComputeMatching <- function(param, haplo.tbl) {
   #
   # min.P.indic <- (logP.match.first.hap >= logP.match.second.hap)
   #
-  # logP.sel.best.hap <- 2*(logP.match.first.hap * (min.P.indic*1) +
-  #   logP.match.second.hap * 1-(min.P.indic*1))
+  # logP.sel.best.hap <- ( logP.match.first.hap * min.P.indic) +
+  #   (logP.match.second.hap * (1-min.P.indic))
   #
-  # logP.match.by.indiv <- logP.sel.best.hap #+
+  # logP.match.by.indiv <- logP.sel.best.hap
+  # depth.from.first.hap <- min.P.indic * haplo.tbl$depth
+
   #   matrix(log(2) * (param$haplo.pair[,1]!=param$haplo.pair[,2]),
   #                                                   ncol=param$n.haplo.pair,
   #                                                   nrow=n.reads,
@@ -319,7 +341,6 @@ PreComputeMatching <- function(param, haplo.tbl) {
   #                               (logP.read.match.ref %*% logP.coefficient))
 
 
-
   # Summing all log P by individual
   index.read.to.indiv <-
     haplo.tbl %>% dplyr::mutate(indx = row_number()) %>% dplyr::select(uniq.id, indx) %>% as.matrix(ncol =
@@ -328,7 +349,27 @@ PreComputeMatching <- function(param, haplo.tbl) {
     matrix(0, nrow = param$n.indiv, ncol = n.reads)
   indic.matrix.read.by.indiv[index.read.to.indiv] <- 1
 
-  indic.matrix.read.by.indiv %*% logP.match.by.indiv
+  phred.prob <- indic.matrix.read.by.indiv %*% logP.match.by.indiv
+
+
+  # n <- matrix(indic.matrix.read.by.indiv %*% haplo.tbl$depth,
+  #             ncol=param$n.haplo.pair,
+  #             nrow=param$n.indiv,
+  #             byrow = F)
+  #
+  # k <- indic.matrix.read.by.indiv %*% depth.from.first.hap
+  #
+  # param$alpha <- 50
+  # param$beta <- 50
+  #
+  # beta.balance <- lgamma(n+1) + lgamma(k+param$alpha) + lgamma(n-k+param$beta) +
+  #   lgamma(param$alpha+param$beta) - lgamma(param$alpha) - lgamma(param$beta) -
+  #   lgamma(k+1) - lgamma(n-k+1) - lgamma(n+param$alpha+param$beta)
+  #
+  # beta.balance[,colSums(param$indic.combn==2)==1] <- 0
+
+  phred.prob #+ beta.balance
+
 }
 
 
