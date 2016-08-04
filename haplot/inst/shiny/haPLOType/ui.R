@@ -122,7 +122,7 @@ shinyUI(
               12,
               column(
                 8,
-                column(3, "Min read coverage:", style = "margin-top:40px;font-weight:bold"),
+                column(3, "Min read depth per indiv:", style = "margin-top:40px;font-weight:bold"),
                 column(3, sliderInput(
                   "coverageMin",
                   "",
@@ -136,7 +136,7 @@ shinyUI(
                   "",
                   min = 0,
                   max = 1,
-                  value = 0
+                  value = 0.2
                 )),
                 style = "padding: 0 0 0 0; margin: -1% 0 0 0;"
               ),
@@ -466,7 +466,7 @@ shinyUI(
               "selectTbl",
               label = "",
               c("observed variants", "reported indiv haplotype", "SNP report"),
-              selected = "reported indiv haplotype"
+              selected = "observed variants"
             ),
             style = "padding-right: 0px; margin-top:-20px;margin-bottom:-20px;padding-left:0%; padding-right: 0px;"
           )

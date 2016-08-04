@@ -73,7 +73,8 @@ shinyServer(function(input, output, session) {
     random.seed = NULL,
     prior.model = NULL,
     locus.select = NULL,
-    min.read.depth = NULL
+    min.read.depth = NULL,
+    data.table = NULL
   )
 
   filterParam <- reactiveValues(minRead = 0, minAllele = 0)
@@ -523,6 +524,7 @@ shinyServer(function(input, output, session) {
       srhapPg$prior.model <- input$selectPrior
       srhapPg$locus.select <- input$selectLocus
       srhapPg$min.read.depth <- input$coverageMin
+      srhapPg$data.table <- update.Haplo.file() %>% filter(locus == input$selectLocus)
 
       Run.SrMicrohap()
     }
@@ -534,7 +536,7 @@ shinyServer(function(input, output, session) {
     if (is.null(haplo.sum))
       return ()
     haplo.filter <- haplo.sum %>%
-      filter(depth > filterParam$minRead,
+      filter(depth >= filterParam$minRead,
              rank <= 2,
              allele.balance >= filterParam$minAllele)
 
@@ -598,7 +600,7 @@ shinyServer(function(input, output, session) {
       return ()
 
     haplo.filter <- haplo.sum %>%
-      filter(depth > filterParam$minRead,
+      filter(depth >= filterParam$minRead,
              allele.balance >= filterParam$minAllele)
 
     if (input$topTwo)
@@ -685,7 +687,7 @@ shinyServer(function(input, output, session) {
         color = frac
       )) +
       #scale_x_log10()+
-      xlab("num of unique haplotypes \nper individual") +
+      xlab("num of uniq. haplotypes \n(per indiv)") +
       ylab("Locus ID") +
       scale_color_continuous(guide = FALSE) + #"fraction")+
       scale_size_continuous(guide = FALSE) +
@@ -743,7 +745,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(frac.calleable, aes(x = n, y = locus)) +
       geom_point() +
-      xlab("total # of unique haplotypes\nacross individuals") +
+      xlab("num of unique haplotypes\n(total indiv)") +
       ylab("") +
       scale_size_continuous(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -808,7 +810,7 @@ shinyServer(function(input, output, session) {
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(0, 0, 0, 0), "mm")
+        plot.margin = unit(c(0, 1, 0, 0), "mm")
       ) +
       ylim(locusPg$l) +
       coord_cartesian(ylim = rangesH$y) +
@@ -855,7 +857,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(readDepth.perI.tbl, aes(x = locus, y = tot.depth)) +
       xlab("") +
-      ylab("read depth \nper individual") +
+      ylab("read depth \n(per indiv)") +
       geom_violin() +
       geom_point(aes(x = locus, y = mean.depth),
                  cex = 3,
@@ -900,7 +902,7 @@ shinyServer(function(input, output, session) {
     haplo.sum <- update.Haplo.file()
 
     haplo.filter <- haplo.sum %>%
-      filter(depth > filterParam$minRead,
+      filter(depth >= filterParam$minRead,
              allele.balance >= filterParam$minAllele)
 
     if (input$topTwo)
@@ -1000,7 +1002,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(tot.hap.per.indiv, aes(x = n.hap.locus, y = id, size = n.locus)) +
       geom_point() +
-      xlab("# of haplotype per locus") +
+      xlab("num of haplotype per locus") +
       ylab("") +
       scale_size_continuous(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -1257,7 +1259,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(filter.tbl, aes(x = n.indiv, y = group, color = group)) +
       geom_point() +
-      xlab("# of\n Indiv") +
+      xlab("num of indiv") +
       ylab("") +
       scale_color_discrete(guide = FALSE) +
       theme_bw() +
@@ -1309,7 +1311,7 @@ shinyServer(function(input, output, session) {
         pch = 3,
         cex = 3
       ) +
-      xlab("fraction of indiv \nw/ calleable haplotype") +
+      xlab("frac of indiv w/ calleable hap") +
       ylab("") +
       scale_color_discrete(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -1338,7 +1340,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(filter.tbl, aes(x = n.locus, y = group, color = group)) +
       geom_point() +
-      xlab("# of\n loci") +
+      xlab("num of loci") +
       ylab("") +
       scale_color_discrete(guide = FALSE) +
       theme_bw() +
@@ -1390,7 +1392,7 @@ shinyServer(function(input, output, session) {
         pch = 3,
         cex = 3
       ) +
-      xlab("fraction of loci \nw/ calleable haplotype") +
+      xlab("frac of loci w/ calleable hap") +
       ylab("") +
       scale_color_discrete(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -1498,7 +1500,7 @@ shinyServer(function(input, output, session) {
     #     nIndiv <- ifelse(input$selectIndiv == "ALL", panelParam$n.indiv, 1)
     #
     #     haplo.filter <- haplo.sum %>%
-    #       filter(depth > filterParam$minRead, locus == input$selectLocus, allele.balance >= filterParam$minAllele)
+    #       filter(depth >= filterParam$minRead, locus == input$selectLocus, allele.balance >= filterParam$minAllele)
     #     if(input$topTwo)
     #       haplo.filter <- haplo.filter %>% filter(rank <= 2)
     #     if (input$selectIndiv != "ALL")
@@ -1523,17 +1525,38 @@ shinyServer(function(input, output, session) {
     if (nrow(allelic.freq.tbl) == 0)
       return()
 
+    all.hap <- unique(allelic.freq.tbl$hap1)
+    allelic.freq.tbl <- allelic.freq.tbl %>% mutate(hap1 = paste0(hap1,
+                                               " (",
+                                               as.numeric(factor(hap1, levels=all.hap)),
+                                               ")"))
+
+    haplo.tot.read.tbl <- update.Haplo.file() %>%
+      filter(
+        depth >= filterParam$minRead,
+        locus == input$selectLocus,
+        allele.balance >= filterParam$minAllele
+      ) %>%
+      group_by(haplo) %>%
+      summarise(tot.depth = sum(depth)) %>%
+      filter(haplo %in% all.hap) %>%
+      mutate(hap1 = paste0(haplo,
+                           " (",
+                           as.numeric(factor(haplo, levels=all.hap)),
+                           ")"))
+
     ggplot(allelic.freq.tbl, aes(
       y = hap1,
       x = f,
       color = factor(hap1)
     )) +
       geom_point(size = 4) +
+      scale_color_discrete(guide = FALSE) +
+      geom_text(data=haplo.tot.read.tbl, aes(y=hap1, x=1, label=tot.depth))+
       xlab("observed freq") +
       ylab("haplotype") +
-      theme_bw() +
-      scale_color_discrete(guide = FALSE)
-
+      xlim(c(0,1.1))+
+      theme_bw()
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
@@ -1557,7 +1580,7 @@ shinyServer(function(input, output, session) {
 
     haplo.filter <- haplo.sum %>%
       filter(
-        depth > filterParam$minRead,
+        depth >= filterParam$minRead,
         locus == input$selectLocus,
         allele.balance >= filterParam$minAllele
       )
@@ -1598,6 +1621,18 @@ shinyServer(function(input, output, session) {
       mutate(re.hap1 = sort(c(hap1, hap2))[1],
              re.hap2 = sort(c(hap1, hap2))[2])
 
+
+    all.hap <- unique(c(freq.hap$re.hap1,freq.hap$re.hap1))
+    haplo.filter <- haplo.filter %>% ungroup() %>% mutate(hap1 = factor(as.numeric(factor(hap1, levels=all.hap)),
+                                                                        levels=1:length(all.hap)),
+                                                          hap2 = factor(as.numeric(factor(hap2, levels=all.hap)),
+                                                                        levels=1:length(all.hap)))
+
+    freq.hap <- freq.hap %>% ungroup() %>% mutate(re.hap1 = factor(as.numeric(factor(re.hap1, levels=all.hap)),
+                                                                   levels=1:length(all.hap)),
+                                    re.hap2 = factor(as.numeric(factor(re.hap2, levels=all.hap)),
+                                                     levels=1:length(all.hap)))
+
     ggplot(haplo.filter,
            aes(
              x = hap1,
@@ -1606,8 +1641,8 @@ shinyServer(function(input, output, session) {
              color = hap1 == hap2
            )) +
       geom_point() +
-      xlab("haplotype 1") +
-      ylab("haplotype 2") +
+      xlab("haplotype 2") +
+      ylab("haplotype 1") +
       geom_point(
         data = freq.hap,
         aes(
@@ -1621,6 +1656,8 @@ shinyServer(function(input, output, session) {
       ) +
       scale_color_discrete(guide = FALSE) +
       scale_size_continuous(range = c(3, 20), guide = FALSE) +
+      scale_x_discrete(limits=1:length(all.hap))+
+      scale_y_discrete(limits=1:length(all.hap))+
       theme_bw()
   }, height = function() {
     ifelse(groupPg$width == 0,
@@ -1812,7 +1849,7 @@ shinyServer(function(input, output, session) {
       srhapPg$locus.select,
       srhapPg$num.iter,
       srhapPg$random.seed,
-      srhapPg$prior.model#,
+      srhapPg$prior.model
       #srhapPg$min.read.depth
     )
 
@@ -1944,7 +1981,7 @@ shinyServer(function(input, output, session) {
     run.result <- Run.SrMicrohap()
 
     progress <- shiny::Progress$new()
-    progress$set(message = 'Generate figures', value = 0.5)
+    progress$set(message = 'Generating figures', value = 0.5)
     on.exit(progress$close())
 
     if (is.null(run.result))
@@ -1998,9 +2035,8 @@ shinyServer(function(input, output, session) {
       )
 
     # gather empiricial result for comparison
-    haplo.filter <- update.Haplo.file() %>%
-      filter(locus == input$selectLocus,
-             depth >=filterParam$minRead,
+    haplo.filter <- srhapPg$data.table %>%
+      filter(depth >=filterParam$minRead,
              rank <= 2,
              allele.balance >= filterParam$minAllele) %>%
       group_by(group, id) %>%
@@ -2010,8 +2046,8 @@ shinyServer(function(input, output, session) {
                              paste0(sum(which(run.result$haplo==haplo[1])),
                                     "/",
                                     sum(which(run.result$haplo==haplo[1]))),
-                             paste0(sort(c(sum(which(param$haplo==haplo[1])),
-                                                  sum(which(param$haplo==haplo[2])))),
+                             paste0(sort(c(sum(which(run.result$haplo==haplo[1])),
+                                                  sum(which(run.result$haplo==haplo[2])))),
                                            collapse = "/")))
 
     ggplot(sample.hap.df,
