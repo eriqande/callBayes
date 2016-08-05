@@ -29,20 +29,20 @@ shinyServer(function(input, output, session) {
                       choices = dirFiles[rds.file])
     haplo.sum <-
       readRDS(select.file.tem)  %>% mutate(id = as.character(id))
-    colnames(haplo.sum) <-
-      c(
-        "group",
-        "id",
-        "locus",
-        "haplo",
-        "depth",
-        "logP.call",
-        "logP.miscall",
-        "pos",
-        "sumP.call",
-        "allele.balance",
-        "rank"
-      )
+
+    # temporary remedy
+    if(ncol(haplo.sum) ==10) {
+      colnames(haplo.sum) <-
+        c("group","id","locus","haplo","depth",
+          "logP.call","logP.miscall","pos","allele.balance",
+          "rank")
+    }
+    else if (ncol(haplo.sum) ==11) {
+      colnames(haplo.sum) <-
+        c("group","id","locus","haplo","depth",
+          "logP.call","logP.miscall","pos", "sumP.call",
+          "allele.balance","rank")
+    }
   }
   else {
     haplo.sum <- NULL
