@@ -130,6 +130,7 @@ while(<SAM>) {
 		my $q = 10**(-(ord(${$hapRead->{"qual"}}[$i])-33)/10);
 		${$hap->{$id}->{$hapRead->{"seq"}}->{"logC"}}[$i]+= log(1-$q) ;
 	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"logW"}}[$i]+= log($q);
+	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"sC"}}[$i]+= 1-$q;
 	}
 
 }
@@ -146,7 +147,8 @@ for my $id (keys %{$hap}){
 				$hap->{$id}->{$h}->{"ct"},  # number of occurence observed for this haplotype or read depth
 				(join ",", @{$hap->{$id}->{$h}->{"logC"}}), # log scale phred stat for being a correct base
 				(join ",", @{$hap->{$id}->{$h}->{"logW"}}), # log scale phred stat for being a miscalled base
-				(join ",", @{$vcf->{$id}}), # variant position
+				(join ",", @{$vcf->{$id}}), # variant position,
+				(join ",", @{$hap->{$id}->{$h}->{"sC"}}), # sum of phred stat for being calling a correct base
 				 "\n";
 	}
 }

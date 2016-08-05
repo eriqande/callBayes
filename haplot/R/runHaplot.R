@@ -111,7 +111,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
 
   haplo.sum <- read.table(summary.tbl, stringsAsFactors = FALSE, sep="\t") %>% dplyr::tbl_df()
 
-  colnames(haplo.sum) <- c("group", "id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos")
+  colnames(haplo.sum) <- c("group", "id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "sumP.call")
 
   num.id <- length(unique(haplo.sum$id))
 
@@ -128,9 +128,9 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
       dplyr::mutate(n.indiv.per.locus = length(unique(id)), max.uniq.hapl=max(n.haplo.per.indiv)) %>%
       dplyr::ungroup() %>%
       dplyr::filter(n.indiv.per.locus > num.id/2, max.uniq.hapl < 40)  %>%
-      dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall, pos) }
+      dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall, pos, sumP.call) }
   else {
-    haplo.cleanup <- haplo.sum %>% dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall,pos)}
+    haplo.cleanup <- haplo.sum %>% dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall, pos, sumP.call)}
 
   haplo.add.balance <- haplo.cleanup %>%
     dplyr::group_by(locus,id) %>%

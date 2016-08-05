@@ -39,6 +39,7 @@ shinyServer(function(input, output, session) {
         "logP.call",
         "logP.miscall",
         "pos",
+        "sumP.call",
         "allele.balance",
         "rank"
       )
