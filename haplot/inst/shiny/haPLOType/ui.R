@@ -473,7 +473,7 @@ shinyUI(
         ),
         column(6, column(
           12,
-          column(6, actionButton('updateTable', 'Update')),
+          #column(6, actionButton('updateTable', 'Update')),
           column(6, downloadButton('downloadData', 'Download'))
         )),
         style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 40px; padding-top:15px; padding-bottom:20px"),
@@ -496,18 +496,17 @@ shinyUI(
           column(
             12,
             column(
-              3,
-              sliderInput(
+              2,
+              numericInput(
                 "gibbIter",
-                "Number of Iterations:",
+                "Num of Iter:",
                 min = 1,
-                max = 10000,
-                value = 1000
-              )
+                value = 1000,
+                step=1)
             ),
             column(
-              3,
-              sliderInput(
+              2,
+              numericInput(
                 "fracBurn",
                 "% for Burn-in",
                 min = 0,
@@ -523,7 +522,8 @@ shinyUI(
                 value = 34532,
                 min = 1,
                 step = 1
-              )
+              ),
+              offset=1
             ),
             column(
               2,
@@ -535,17 +535,35 @@ shinyUI(
               )
             ),
             column(
-              1,
+              2,
               actionButton(
                 "submitSrMicroHap",
                 "Submit",
                 icon("random"),
                 style = "margin-top:20px; padding-right: 0px;",
-                width = "200%"
-              )
+                width = "100%"
+              ),
+              offset=1
             )
-          )
-        )),
+          ),
+          column(12, "Parameters define the set for true haplotype:"),
+          column(12,
+                 column(3, numericInput(
+                   "minRDsr",
+                   label = "min read depth (total indiv)",
+                   value = 10,
+                   min = 1,
+                   step = 1
+                 )),
+                 column(3, numericInput(
+                   "minARsr",
+                   "min allelic ratio",
+                   min = 0,
+                   max = 1,
+                   value = 0.2,
+                   step=0.01
+                 ))
+        ))),
         fluidRow(column(
           12, plotOutput("indivHapPosPlot", height = "auto")
         ),

@@ -152,6 +152,9 @@ shinyServer(function(input, output, session) {
                       "selectGroup",
                       selected = "ALL",
                       choices = panelParam$group.label)
+    #updateSelectInput(session,
+    #                  "selectTbl",
+    #                  selected = "observed variants")
 
 
     end.indx <- min(15, panelParam$n.locus)
@@ -1716,15 +1719,17 @@ shinyServer(function(input, output, session) {
   output$downloadData <- downloadHandler(
     filename = function() {
       if (input$selectTbl == "reported indiv haplotype")
-        return ("filtered_haplotype.csv")
-      if (input$selectTbl == "observed variants")
-        return ("observed_haplotype.csv")
+        return ("reported_haplotype.csv")
+      if (input$selectTbl == "observed variants (filtered)")
+        return ("observed_filtered_haplotype.csv")
+      if (input$selectTbl == "observed variants (unfiltered)")
+        return ("observed_unfiltered_haplotype.csv")
       if (input$selectTbl == "SNP report")
         return ("snp_report.csv")
     }
     ,
     content = function(file) {
-      if (input$selectTbl == "reported indiv haplotype") {
+      if (isolate(input$selectTbl) == "reported indiv haplotype") {
         if (is.null(haplo.summaryTbl()))
           return()
         haplo.freq <-
@@ -1748,11 +1753,26 @@ shinyServer(function(input, output, session) {
           left_join(haplo.all, haplo.isAccept, by = c("locus"))
         write.csv(haplo.all, file)
       }
-      if (input$selectTbl ==  "observed variants") {
-        haplo.all <- Filter.haplo.sum() %>% rename("indiv.ID" = id)
+      if (isolate(input$selectTbl) ==  "observed variants (unfiltered)") {
+        haplo.filter <- update.Haplo.file()
+        if (is.null(haplo.sum)) return ()
+        if (input$selectGroup != "ALL")
+          haplo.filter <- haplo.filter %>% filter(group == input$selectGroup)
+        if (input$selectLocus != "ALL")
+          haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
+        if (input$selectIndiv != "ALL")
+          haplo.filter <-haplo.filter %>% filter(id == input$selectIndiv)
+
+        haplo.all <- haplo.filter %>% rename("indiv.ID" = id)
         write.csv(haplo.all, file)
       }
-      if (input$selectTbl == "SNP report") {
+      if (isolate(input$selectTbl) ==  "observed variants (filtered)") {
+
+        haplo.all <- Filter.haplo.sum() %>% rename("indiv.ID" = id)
+        write.csv(haplo.all, file)
+            }
+
+      if (isolate(input$selectTbl) == "SNP report") {
         haplo.summaryTable <- haplo.summaryTbl()
         n.base <- nchar(haplo.summaryTable$haplotype.1)
         haplo.all <-
@@ -1773,12 +1793,12 @@ shinyServer(function(input, output, session) {
     }
   )
 
-  observeEvent(input$updateTable, {
-    if (is.null(haplo.freqTbl()) ||
-        is.null(haplo.summaryTbl()))
-      return()
+  output$haploTbl <- DT::renderDataTable({
+  #observeEvent(input$updateTable, {
+  #observeEvent(input$selectTbl, {
 
     if (input$selectTbl == "reported indiv haplotype") {
+      if (is.null(haplo.freqTbl())) return()
       haplo.freq <-
         haplo.freqTbl() %>% mutate(
           obs.freq = round(obs.freq, 3),
@@ -1801,11 +1821,19 @@ shinyServer(function(input, output, session) {
     }
 
     if (input$selectTbl == "observed variants") {
+      if (is.null(Filter.haplo.sum())) return()
+
       haplo.all <-
-        Filter.haplo.sum() %>% rename("Individual ID" = id) %>% select(-logP.call,-logP.miscall)
+        Filter.haplo.sum() %>% rename("Individual ID" = id) %>%
+        select(-logP.call,-logP.miscall)
+
+      if ("sumP.call" %in% colnames(haplo.all)) haplo.all <- haplo.all %>% select(-sumP.call)
     }
 
     if (input$selectTbl == "SNP report") {
+      if (is.null(haplo.summaryTbl())) return()
+
+
       haplo.summaryTable <- haplo.summaryTbl()
       n.base <- nchar(haplo.summaryTable$haplotype.1)
       haplo.all <-
@@ -1821,12 +1849,12 @@ shinyServer(function(input, output, session) {
     }
 
 
-    output$haploTbl <- DT::renderDataTable({
+    #output$haploTbl <- DT::renderDataTable({
       DT::datatable(haplo.all, options = list(lengthMenu = list(c(5, 15, -1), c(
         '5', '15', 'All'
       )),
       pageLength = 15))
-    })
+    #})
 
   })
 
