@@ -14859,6 +14859,7 @@ use Getopt::Std;
 #use File::Basename;
 #use lib dirname (__FILE__);
 use Bio::Cigar;
+use List::Util qw(max);
 
 use vars qw/ %opt /;
 
@@ -14978,12 +14979,14 @@ while(<SAM>) {
 
 	$hap->{$id}->{$hapRead->{"seq"}}->{"ct"}++;
 	for my $i (0..$#{$vcf->{$id}}) {
-		#my $q = 10**(-(ord(${$hapRead->{"qual"}}[$i])-33)/10);
+		my $q = 10**(-(ord(${$hapRead->{"qual"}}[$i])-33)/10);
 		#${$hap->{$id}->{$hapRead->{"seq"}}->{"logC"}}[$i]+= log(1-$q) ;
 	 	#${$hap->{$id}->{$hapRead->{"seq"}}->{"logW"}}[$i]+= log($q);
-	 	#${$hap->{$id}->{$hapRead->{"seq"}}->{"sC"}}[$i]+= 1-$q;
+	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"sC"}}[$i]+= 1-$q; # collecting the sum of phred site score for future use
+	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"maxC"}}[$i] = max(1-$q, ${$hap->{$id}->{$hapRead->{"seq"}}->{"maxC"}}[$i]);
+
 	}
-	${$hap->{$id}->{$hapRead->{"seq"}}->{"mapq"}->{$mapq}}++;
+	#${$hap->{$id}->{$hapRead->{"seq"}}->{"mapq"}->{$mapq}}++; # collecting the MapQ alignment score
 
 }
 

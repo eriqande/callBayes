@@ -3,6 +3,7 @@ use warnings;
 use strict;
 use Getopt::Std;
 use Bio::Cigar;  # Cpan this if you want to run this script !!
+use List::Util qw(max);
 
 use vars qw/ %opt /;
 
@@ -88,6 +89,7 @@ while(<SAM>) {
 	my @lines = split "\t";
 	my $id = $lines[2];
 	my $st_qpos = $lines[3]; # starting query position
+	#my $mapq = $lines[4]; # mapping quality score
 	#skip if the alignment id is not found in the vcf hash ref
 	next if not defined $vcf->{$id};
 
@@ -128,10 +130,13 @@ while(<SAM>) {
 	$hap->{$id}->{$hapRead->{"seq"}}->{"ct"}++;
 	for my $i (0..$#{$vcf->{$id}}) {
 		my $q = 10**(-(ord(${$hapRead->{"qual"}}[$i])-33)/10);
-		${$hap->{$id}->{$hapRead->{"seq"}}->{"logC"}}[$i]+= log(1-$q) ;
-	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"logW"}}[$i]+= log($q);
-	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"sC"}}[$i]+= 1-$q;
+		#${$hap->{$id}->{$hapRead->{"seq"}}->{"logC"}}[$i]+= log(1-$q) ;
+	 	#${$hap->{$id}->{$hapRead->{"seq"}}->{"logW"}}[$i]+= log($q);
+	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"sC"}}[$i]+= 1-$q; # collecting the sum of prob phred site score for future use
+	 	${$hap->{$id}->{$hapRead->{"seq"}}->{"maxC"}}[$i] = max(1-$q, ${$hap->{$id}->{$hapRead->{"seq"}}->{"maxC"}}[$i]);
+
 	}
+	#${$hap->{$id}->{$hapRead->{"seq"}}->{"mapq"}->{$mapq}}++; # collecting the MapQ alignment score
 
 }
 
@@ -140,16 +145,23 @@ while(<SAM>) {
 
 for my $id (keys %{$hap}){
 	for my $h (keys %{$hap->{$id}}){
+
 		print join "\t", $opt{g}, # group label
 				 $opt{i}, # individual id label
 				$id, #locus id
 				$h, # haplotype sequence
 				$hap->{$id}->{$h}->{"ct"},  # number of occurence observed for this haplotype or read depth
-				(join ",", @{$hap->{$id}->{$h}->{"logC"}}), # log scale phred stat for being a correct base
-				(join ",", @{$hap->{$id}->{$h}->{"logW"}}), # log scale phred stat for being a miscalled base
-				(join ",", @{$vcf->{$id}}), # variant position,
-				(join ",", @{$hap->{$id}->{$h}->{"sC"}}), # sum of phred stat for being calling a correct base
-				 "\n";
+				#(join ",", @{$hap->{$id}->{$h}->{"logC"}}), # log scale phred stat for being a correct base
+				#(join ",", @{$hap->{$id}->{$h}->{"logW"}}), # log scale phred stat for being a miscalled base
+				#(join ",", @{$vcf->{$id}}); # variant position
+				(join ",", @{$hap->{$id}->{$h}->{"sC"}}), # sum of prob for calling correct base
+				(join ",", @{$hap->{$id}->{$h}->{"maxC"}}), # max phred score
+				"\n";
+
+		#print "\t";
+
+    #print join ",", map {$_, ${$hap->{$id}->{$h}->{"mapq"}->{$_}}} (keys %{$hap->{$id}->{$h}->{"mapq"}});
+	  #print "\n";
 	}
 }
 
