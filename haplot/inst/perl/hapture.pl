@@ -9,7 +9,8 @@ use vars qw/ %opt /;
 
 # this program is subsequently packed via App::FatPacker
 # see http://perltricks.com/article/58/2014/1/5/The-easy-way-to-build-stand-alone-Perl-apps/
-# fatpacker pack hapture.pl > hapture
+# install fatpack via cpan App::FatPacker
+# fatpack pack hapture.pl > hapture
 # either perl hapture or -run as executable by chmod 755
 
 
