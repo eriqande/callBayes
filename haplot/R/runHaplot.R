@@ -142,8 +142,8 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
 
   vcf.pos.tbl <- read.table(vcf.path) %>%
     .[,1:2] %>% # grabbing locus name, and pos
-    group_by(V1) %>%
-    summarise(pos=paste0(V2, collapse=","))
+    dplyr::group_by(V1) %>%
+    dplyr::summarise(pos=paste0(V2, collapse=","))
 
   saveRDS(vcf.pos.tbl, paste0(out.path, "/",run.label,"_pos.rds"))
 
