@@ -111,7 +111,7 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
 
   haplo.sum <- read.table(summary.tbl, stringsAsFactors = FALSE, sep="\t") %>% dplyr::tbl_df()
 
-  colnames(haplo.sum) <- c("group", "id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "sumP.call")
+  colnames(haplo.sum) <- c("group", "id", "locus", "haplo", "depth", "sum.Phred.C", "max.Phred.C")
 
   num.id <- length(unique(haplo.sum$id))
 
@@ -128,9 +128,9 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
       dplyr::mutate(n.indiv.per.locus = length(unique(id)), max.uniq.hapl=max(n.haplo.per.indiv)) %>%
       dplyr::ungroup() %>%
       dplyr::filter(n.indiv.per.locus > num.id/2, max.uniq.hapl < 40)  %>%
-      dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall, pos, sumP.call) }
+      dplyr::select(group, id, locus, haplo, depth, sum.Phred.C, max.Phred.C) }
   else {
-    haplo.cleanup <- haplo.sum %>% dplyr::select(group, id, locus, haplo, depth, logP.call, logP.miscall, pos, sumP.call)}
+    haplo.cleanup <- haplo.sum %>% dplyr::select(group, id, locus, haplo, depth, sum.Phred.C, max.Phred.C)}
 
   haplo.add.balance <- haplo.cleanup %>%
     dplyr::group_by(locus,id) %>%
@@ -140,10 +140,17 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
 
   saveRDS(haplo.add.balance, paste0(out.path, "/",run.label,".rds"))
 
-  cat(paste0("\n\nRDS file: copied into shiny directory: ",app.path, "/",run.label,".rds ",
+  vcf.pos.tbl <- read.table(vcf.path) %>%
+    .[,1:2] %>% # grabbing locus name, and pos
+    group_by(V1) %>%
+    summarise(pos=paste0(V2, collapse=","))
+
+  saveRDS(vcf.pos.tbl, paste0(out.path, "/",run.label,"_pos.rds"))
+
+  cat(paste0("\n\nRDS file: copied into shiny directory: ",app.path, "/",run.label,"*.rds ",
              "\nRun runHaplotype() to open shiny app.\n\n"))
 
-  system(paste0("cp ", out.path, "/",run.label,".rds ", app.path, "/",run.label,".rds") )
+  system(paste0("cp ", out.path, "/",run.label,"*.rds ", app.path, "/.") )
 
   return(haplo.add.balance)
 }
