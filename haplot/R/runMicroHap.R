@@ -1,12 +1,14 @@
 
 
 # Testing set:
-# haplo.sum<- readRDS("data/satro_sample/satrovirens_7_19_16.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
-# colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "allele.balance","rank")
-# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_2157", 2000)
+# haplo.sum<- readRDS("inst/shiny/haPLOType/satrovirens_7_19_16.rds")  %>% mutate(id = as.character(id)) %>% tbl_df()
+# if(ncol(haplo.sum)==11) colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos", "sumP.call","allele.balance","rank")
+# if(ncol(haplo.sum)==10) colnames(haplo.sum) <- c("group","id", "locus", "haplo", "depth", "logP.call", "logP.miscall", "pos","allele.balance","rank")
+#
+# collect.data <- RunSrMicrohap(haplo.sum, "tag_id_914", 2000)
 #
 # haplo.tbl <- haplo.sum
-# locus <- "tag_id_1511"
+# locus <- "tag_id_914"
 # prior.model<-"uniform"
 # n.sam <- 2000
 # random.seed <- 43454
@@ -248,7 +250,34 @@ PreComputeMatching <- function(param, haplo.tbl) {
   #                                                                                  param$n.sites, byrow = T)
   #
   # logI.matrix <- logI.matrix /haplo.tbl$depth
+
+
   logI.matrix <- log(1-exp(logC.matrix))
+
+
+  if("sumP.call" %in% colnames(haplo.tbl)) {
+  sC.matrix <-
+    strsplit(haplo.tbl$sumP.call, ",") %>%
+    unlist %>%
+    as.numeric() %>%
+    matrix(ncol = param$n.sites, byrow = T)
+
+  aveC.matrix <- sC.matrix / haplo.tbl$depth
+  aveI.matrix <- 1-aveC.matrix
+
+  # mock
+  cat("create a mock\n")
+  # aveC.matrix <- matrix(0.999,
+  #                       ncol=param$n.sites,
+  #                       nrow=dim(haplo.tbl)[1])
+  # aveI.matrix <- 1-aveC.matrix
+  #
+  # logC.matrix <- log(aveC.matrix)
+  # locI.matrix <- log(aveI.matrix)
+
+  }
+  # cat(logC.matrix[1,1],"\n")
+
 
 
   n.reads <- dim(haplo.tbl)[1]
@@ -271,22 +300,17 @@ PreComputeMatching <- function(param, haplo.tbl) {
 
   P.read.match.ref <- exp(logP.read.match.ref)
 
+  # case where we marginalize over two possible states of derived haplotypes
   logP.coefficient <- param$indic.combn
   logP.coefficient[logP.coefficient == 1] <- 1/2
   logP.coefficient[logP.coefficient == 2] <- 1
 
   logP.match.by.indiv <- log((P.read.match.ref  %*% logP.coefficient)) * depth
-
   logP.match.by.indiv[is.infinite(logP.match.by.indiv)] <- min(logP.read.match.ref)
 
-
-
-  # depth[,colSums(param$indic.combn==2)==1] <- 1
-  #
-  # logP.match.by.indiv <-  logP.match.by.indiv * depth
-
-  # impose an assumption that for an heterzygous haplotype individual, an observed haplotype must
-  # derived from only one of the best matched haplotype, instead of mixture prob from both haplotype
+  # parsimonus assumption #1: Any observed haplotype has an exact match to the
+  # underlying truth haplotype is derived from it.
+  #instead of mixture prob from both haplotype
 
   # indx.to.first.hap <- matrix(0, nrow = param$n.haplo , ncol = param$n.haplo.pair)
   # indx.to.first.hap[cbind(param$haplo.pair[, 1],
@@ -315,11 +339,10 @@ PreComputeMatching <- function(param, haplo.tbl) {
   #logP.coefficient[logP.coefficient == 1] <- log(2)/2
   #logP.match.by.indiv <- (logP.read.match.ref %*% logP.coefficient)
 
-
-
   # impose that any observed haplotype that completely matches with one of the reference haplotype MUST
   # derived from that reference haplotype, thus ignore the possibility that observed haplotype
-  # could generated from genotype error
+  # could also be a product of genotype error occurred in the other mismatch haplotype
+  # for the case of heterzygous
 
   # NOTE: This assumption should be relaxed especially for unbalanced reads
 
