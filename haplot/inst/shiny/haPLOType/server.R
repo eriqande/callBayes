@@ -1,4 +1,5 @@
 library(shiny)
+library(shinyBS)
 library("ggplot2")
 library("plyr")
 library("dplyr")
@@ -20,6 +21,10 @@ library("reshape2")
 shinyServer(function(input, output, session) {
   dirFiles <- list.files()
   rds.file <- grep(".rds", dirFiles)
+  
+  pos.rds.file <- grep("_posinfo.rds", dirFiles)
+  rds.file <- setdiff(rds.file, pos.rds.file)
+  
 
   if (length(rds.file) > 0) {
     select.file.tem <- dirFiles[rds.file[1]]
@@ -29,20 +34,6 @@ shinyServer(function(input, output, session) {
                       choices = dirFiles[rds.file])
     haplo.sum <-
       readRDS(select.file.tem)  %>% mutate(id = as.character(id))
-
-    # temporary remedy
-    if(ncol(haplo.sum) ==10) {
-      colnames(haplo.sum) <-
-        c("group","id","locus","haplo","depth",
-          "logP.call","logP.miscall","pos","allele.balance",
-          "rank")
-    }
-    else if (ncol(haplo.sum) ==11) {
-      colnames(haplo.sum) <-
-        c("group","id","locus","haplo","depth",
-          "logP.call","logP.miscall","pos", "sumP.call",
-          "allele.balance","rank")
-    }
   }
   else {
     haplo.sum <- NULL
@@ -57,7 +48,11 @@ shinyServer(function(input, output, session) {
       return()
     #cat(file=stderr(), "select DB_", input$selectDB, "_----\n")
     readRDS(input$selectDB)  %>% mutate(id = as.character(id))
-
+  })
+  
+  extract.pos.file <- reactive({
+    pos.file <- strsplit(input$selectDB, split=".rds") %>% unlist %>% paste0(.,"_posinfo.rds")
+    readRDS(pos.file)
   })
 
 
@@ -78,7 +73,7 @@ shinyServer(function(input, output, session) {
     data.table = NULL
   )
 
-  filterParam <- reactiveValues(minRead = 0, minAllele = 0)
+  filterParam <- reactiveValues(minRD = 0, minAR = 0, hover.minAR = 0, hover.minRD =0)
   panelParam <- reactiveValues(
     n.locus = NULL,
     n.indiv = NULL,
@@ -228,8 +223,15 @@ shinyServer(function(input, output, session) {
 
   # reacting to the filter update button
   observeEvent(input$updateFilter, {
-    filterParam$minRead <- input$coverageMin
-    filterParam$minAllele <- input$minAlleleRatio
+    if(is.na(input$coverageMin) || input$coverageMin <0) {
+      createAlert(session, "alert", "filterAlert", title = "Invalid input",
+                  content = "Minimum read coverage must be a positive integer", append = FALSE)
+      return()
+    }
+
+    closeAlert(session, "filterAlert")
+    filterParam$minRD <- input$coverageMin
+    filterParam$minAR <- input$minAlleleRatio
     Filter.haplo.sum()
   })
 
@@ -284,6 +286,9 @@ shinyServer(function(input, output, session) {
         renderText({
           ifelse(panelParam$is.reject[indx] == 0, "Accept", "Reject")
         })
+
+      closeAlert(session,"hapLocusAlert")
+      closeAlert(session,"cuthapLocusAlert")
     }
     else {
       output$locusAcceptStatus <- renderText({
@@ -306,6 +311,11 @@ shinyServer(function(input, output, session) {
       end.indx <- min(15, panelParam$n.locus)
       locusPg$l <- panelParam$locus.label.bare[1:end.indx]
       rangesH$y <- c(0, end.indx + 1)
+
+      createAlert(session, "hapAlert", "hapLocusAlert", title = "No Locus selection",
+                                               content = "Need to select a locus", append = FALSE)
+      createAlert(session, "cutoffhapAlert", "cuthapLocusAlert", title = "No Locus selection",
+                                               content = "Need to select a locus", append = FALSE)
     }
     Filter.haplo.sum()
     #srhapPg$makePlot <- FALSE
@@ -536,23 +546,10 @@ shinyServer(function(input, output, session) {
 
 
   haplo.summaryTbl <- reactive({
-    haplo.sum <- update.Haplo.file()
+    haplo.sum <- Filter.haplo.sum()
     if (is.null(haplo.sum))
       return ()
-    haplo.filter <- haplo.sum %>%
-      filter(depth >= filterParam$minRead,
-             rank <= 2,
-             allele.balance >= filterParam$minAllele)
-
-    if (input$selectGroup != "ALL")
-      haplo.filter <-
-      haplo.filter %>% filter(group == input$selectGroup)
-    if (input$selectLocus != "ALL")
-      haplo.filter <-
-      haplo.filter %>% filter(locus == input$selectLocus)
-    if (input$selectIndiv != "ALL")
-      haplo.filter <-
-      haplo.filter %>% filter(id == input$selectIndiv)
+    haplo.filter <- haplo.sum %>% filter(rank <=2)
 
     haplo.filter <- haplo.filter %>%
       group_by(locus, id, group) %>%
@@ -597,30 +594,39 @@ shinyServer(function(input, output, session) {
   })
 
 
+  Min.filter.haplo <- reactive({
+    haplo.filter <- update.Haplo.file()
+    if (is.null(haplo.filter))
+      return ()
+    if (input$selectGroup != "ALL")
+      haplo.filter <- haplo.filter %>% filter(group == input$selectGroup)
+    if (input$selectLocus != "ALL")
+      haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
+    if (input$selectIndiv != "ALL")
+      haplo.filter <- haplo.filter %>% filter(id == input$selectIndiv)
+    
+    hapPg$width <- haplo.filter %>% filter(rank <= 2) %>% select(haplo) %>% unique %>% unlist %>% length
+    
+    haplo.filter
+  })
+
+
   Filter.haplo.sum <- reactive({
-    haplo.sum <- update.Haplo.file()
+    haplo.sum <- Min.filter.haplo()
 
     if (is.null(haplo.sum))
       return ()
 
     haplo.filter <- haplo.sum %>%
-      filter(depth >= filterParam$minRead,
-             allele.balance >= filterParam$minAllele)
+      filter(depth >= filterParam$minRD,
+             allele.balance >= filterParam$minAR)
 
     if (input$topTwo)
       haplo.filter <- haplo.filter %>% filter(rank <= 2)
 
-    if (input$selectGroup != "ALL")
-      haplo.filter <-
-      haplo.filter %>% filter(group == input$selectGroup)
-    if (input$selectLocus != "ALL")
-      haplo.filter <-
-      haplo.filter %>% filter(locus == input$selectLocus)
-    if (input$selectIndiv != "ALL")
-      haplo.filter <-
-      haplo.filter %>% filter(id == input$selectIndiv)
-
     groupPg$width <- dim(haplo.filter)[1]
+    hapPg$width <- haplo.filter %>% filter(rank <= 2) %>% select(haplo) %>% unique %>% unlist %>% length
+
     haplo.filter
   })
 
@@ -906,8 +912,8 @@ shinyServer(function(input, output, session) {
     haplo.sum <- update.Haplo.file()
 
     haplo.filter <- haplo.sum %>%
-      filter(depth >= filterParam$minRead,
-             allele.balance >= filterParam$minAllele)
+      filter(depth >= filterParam$minRD,
+             allele.balance >= filterParam$minAR)
 
     if (input$topTwo)
       haplo.filter <- haplo.filter %>% filter(rank <= 2)
@@ -961,7 +967,7 @@ shinyServer(function(input, output, session) {
       ylim(indivPg$i) +
       coord_cartesian(ylim = ranges$y) +
       geom_vline(
-        xintercept = filterParam$minAllele,
+        xintercept = filterParam$minAR,
         linetype = "dashed",
         color = "red"
       )
@@ -1214,8 +1220,29 @@ shinyServer(function(input, output, session) {
   #   })
   #
 
+  # observeEvent(input$ARplot_hover, {
+  #   if (!is.null(input$ARplot_hover)) filterParam$hover.minAR = input$ARplot_hover$x
+  # })
 
+  observeEvent(input$ARplot_dblclick, {
+    if (!is.null(input$ARplot_dblclick)){
+      filterParam$minAR <- round(input$ARplot_dblclick$x,2)
+      updateNumericInput(session, "minAlleleRatio",value=filterParam$minAR)
+      Filter.haplo.sum()
+    }
+  })
 
+  # observeEvent(input$RDplot_hover, {
+  #   if (!is.null(input$RDplot_hover)) filterParam$hover.minRD = input$RDplot_hover$x
+  # })
+
+  observeEvent(input$RDplot_dblclick, {
+    if (!is.null(input$RDplot_dblclick)){
+      filterParam$minRD <- ceiling(input$RDplot_dblclick$x)
+      updateNumericInput(session, "coverageMin",value=filterParam$minRD)
+      Filter.haplo.sum()
+    }
+  })
 
 
 
@@ -1414,7 +1441,234 @@ shinyServer(function(input, output, session) {
     )
   })
 
-  #ABOUT HAPLOTYPE distribution panel
+
+  ## filter status:cutoff distribution panel
+
+  output$allReadDepth <- renderPlot({
+
+    if (is.null(input$selectLocus) ||
+        is.null(input$selectIndiv) ||
+        input$selectDB == "" ||
+        is.null(input$selectDB) || is.null(locusPg$l)) {
+      return()
+    }
+
+    haplo.filter <- Min.filter.haplo()
+    if(is.null(Min.filter.haplo)) return()
+
+      ggplot(haplo.filter, aes(x=depth))+
+      #geom_density()+
+      geom_histogram(binwidth = 0.05)+
+      scale_x_log10("distrib. of read depth")+
+      scale_y_continuous("", breaks=NULL)+
+        theme_bw()+
+        geom_vline(
+        xintercept = filterParam$minRD,
+        linetype = "dashed",
+        color = "red"
+      )+
+      theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),
+            panel.margin = unit(0, 'mm'),
+        plot.margin = unit(c(2, 0, 2, 0), "mm"))
+      # geom_vline(
+      #   xintercept = filterParam$hover.minRD,
+      #   linetype = "dashed",
+      #   color = "blue"
+      # )
+
+  }, height = 300)
+
+    output$allAllelicRatio <- renderPlot({
+
+    if (is.null(input$selectLocus) ||
+        is.null(input$selectIndiv) ||
+        input$selectDB == "" ||
+        is.null(input$selectDB) || is.null(locusPg$l)) {
+      return()
+    }
+
+    haplo.filter <- Min.filter.haplo()
+    if(is.null(Min.filter.haplo)) return()
+
+      ggplot(haplo.filter, aes(x=allele.balance))+
+      #geom_density()+
+      geom_histogram(binwidth = 0.1)+
+      scale_x_log10("distrib. of allelic ratio",#limits=c(min(haplo.filter$allele.balance),1),
+                    breaks=c(0.01,0.1,0.5,1))+
+      scale_y_continuous("",breaks=NULL)+
+        theme_bw()+
+        geom_vline(
+        xintercept = filterParam$minAR,
+        linetype = "dashed",
+        color = "red"
+      )+
+      theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),
+            panel.margin = unit(0, 'mm'),
+        plot.margin = unit(c(2, 0, 2, 0), "mm"))
+      # geom_vline(
+      #   xintercept = filterParam$hover.minAR,
+      #   linetype = "dashed",
+      #   color = "blue"
+      # )
+  }, height = 300)
+
+
+    output$haplabel <- renderPlot({
+      
+      if (is.null(input$selectLocus) ||
+          input$selectLocus == "ALL" ||
+          is.null(input$selectIndiv) ||
+          input$selectDB == "" ||
+          is.null(input$selectDB) || is.null(locusPg$l)) {
+        return()
+      }
+      
+      haplo.filter <- Min.filter.haplo()
+      if(is.null(Min.filter.haplo)) return()
+      
+      haplo.rep <- haplo.filter %>% filter(rank <= 2,depth >= filterParam$minRD,
+                                           allele.balance >= filterParam$minAR) %>%
+        select(haplo) %>% unique %>% unlist()
+      
+      if (length(haplo.rep)==0) return()
+      
+      haplo.rep.df <- data.frame(haplo=factor(haplo.rep, level=sort(haplo.rep,decreasing=T)),
+                                 x=0,
+                                 y=0)
+      
+      ggplot(haplo.rep.df, aes(x,y, fill=haplo))+
+        geom_point(size=0, color="white")+
+        #geom_density(adjust=0.5, color=NA)+
+        facet_grid(haplo~., scales="free_y")+
+        scale_x_continuous("",breaks=NULL,limits=c(0,0.1))+
+        scale_fill_discrete(guide=FALSE,direction=-1)+
+        scale_y_continuous("",breaks=NULL,limits=c(0,0.1))+ #breaks=1
+        theme_bw()+
+        theme(strip.text.y = element_text(angle =360, margin=margin(0,2,0,2)),
+              panel.margin = unit(0, 'mm'),
+              plot.margin = unit(c(2, 0, 6, 0), "mm"),
+              aspect.ratio =1000)
+      
+    }, height = function() {
+      ifelse(hapPg$width == 0,
+             0,
+             max(hapPg$width*30, 300))
+    })
+    
+
+
+  # figures: in reference to the two top most common haplotype
+  output$hapReadDepth <- renderPlot({
+
+    if (is.null(input$selectLocus) ||
+        input$selectLocus == "ALL" ||
+        is.null(input$selectIndiv) ||
+        input$selectDB == "" ||
+        is.null(input$selectDB) || is.null(locusPg$l)) {
+      return()
+    }
+
+    haplo.filter <- Min.filter.haplo()
+    if(is.null(Min.filter.haplo)) return()
+
+    haplo.rep <- haplo.filter %>% filter(rank <= 2,depth >= filterParam$minRD,
+             allele.balance >= filterParam$minAR) %>%
+      select(haplo) %>% unique %>% unlist()
+
+    haplo.match.rep <- haplo.filter %>% filter(haplo %in% haplo.rep) %>%
+      mutate(haplo=factor(haplo, level=sort(haplo.rep,decreasing=T)))
+
+    if (nrow(haplo.match.rep)==0) return()
+    # ggplot(haplo.match.rep, aes(x=depth, y=haplo, color=haplo))+
+    #   #geom_density(adjust=1)+
+    #   geom_point(alpha=0.5)+
+    #   #stat_bin(binwidth = .1,geom="line")+
+    #   scale_x_log10("distrib. of read depth")+
+    #   scale_color_discrete(guide=FALSE, direction=-1)+
+    #     theme_bw()+
+    #     geom_vline(
+    #     xintercept = filterParam$minRD,
+    #     linetype = "dashed",
+    #     color = "red"
+    #   )+
+    #   theme(panel.margin = unit(0, 'mm'),
+    #     plot.margin = unit(c(2, 0, 2, 0), "mm"))
+
+      ggplot(haplo.match.rep, aes(x=depth, fill=haplo))+
+      geom_histogram(binwidth = 0.05)+
+      geom_point(data=haplo.match.rep, aes(x=depth, y=0), size=1.2, alpha=0.4)+
+      #geom_density(adjust=0.5, color=NA)+
+      facet_grid(haplo~., scales="free_y")+
+      scale_x_log10("distrib. of read depth")+
+      scale_fill_discrete(guide=FALSE,direction=-1)+
+      scale_y_continuous("",breaks=NULL)+ #breaks=1
+        theme_bw()+
+        geom_vline(
+        xintercept = filterParam$minRD,
+        linetype = "dashed",
+        color = "red"
+      )+
+      theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),
+            panel.margin = unit(0, 'mm'),
+        plot.margin = unit(c(2, 0, 2, 0), "mm"))
+
+  }, height = function() {
+    ifelse(hapPg$width == 0,
+           0,
+           max(hapPg$width*30, 300))
+  })
+
+  output$hapAllelicRatio <- renderPlot({
+
+    if (is.null(input$selectLocus) ||
+        input$selectLocus == "ALL" ||
+        is.null(input$selectIndiv) ||
+        input$selectDB == "" ||
+        is.null(input$selectDB) || is.null(locusPg$l)) {
+      return()
+    }
+
+    haplo.filter <- Min.filter.haplo()
+
+    haplo.rep <- haplo.filter %>% filter(rank <= 2,depth >= filterParam$minRD,
+             allele.balance >= filterParam$minAR) %>%
+      select(haplo) %>% unique %>% unlist()
+
+    haplo.match.rep <- haplo.filter %>% filter(haplo %in% haplo.rep) %>%
+      mutate(haplo=factor(haplo, level=sort(haplo.rep,decreasing=T)))
+
+    if (nrow(haplo.match.rep)==0) return()
+
+      ggplot(haplo.match.rep, aes(x=allele.balance, fill=haplo))+
+      geom_histogram(binwidth = 0.1)+
+      geom_point(data=haplo.match.rep, aes(x=allele.balance, y=0), size=1.2, alpha=0.4)+
+      #geom_density(adjust=0.1, color=NA)+
+
+      facet_grid(haplo~., scales="free_y")+
+      scale_x_log10("distrib. of allelic ratio",breaks=c(0.01,0.1,0.5,1))+
+      scale_fill_discrete(guide=FALSE, direction=-1)+
+      scale_y_continuous("",breaks=NULL)+
+        theme_bw()+
+        geom_vline(
+        xintercept = filterParam$minAR,
+        linetype = "dashed",
+        color = "red"
+      )+
+      theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),panel.margin = unit(0, 'mm'),
+        plot.margin = unit(c(2, 0, 2, 0), "mm"))
+
+  }, height = function() {
+    ifelse(hapPg$width == 0,
+           0,
+           max(hapPg$width*30, 300))
+  })
+
+
+  ##ABOUT HAPLOTYPE distribution panel
+
+  # panel display the variants connections in microhaplotype in relationship to position
+
+
   output$hapSeq <- renderPlot({
     if (is.null(input$selectLocus) ||
         input$selectLocus == "ALL" ||
@@ -1424,7 +1678,10 @@ shinyServer(function(input, output, session) {
       return ()
 
     haplo.filter <- Filter.haplo.sum()
-    position <- strsplit(haplo.filter$pos[1], ",") %>% unlist
+    
+    pos.file <- extract.pos.file()
+    pos.str <- pos.file %>% filter(locus==input$selectLocus) %>% select(pos) %>% unlist
+    position <- strsplit(pos.str, ",") %>% unlist %>% as.numeric
 
     haplo.profile.frac <- haplo.filter %>%
       group_by(haplo) %>%
@@ -1487,7 +1744,7 @@ shinyServer(function(input, output, session) {
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
-           ifelse(input$selectLocus == "ALL", 0, 400))
+           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*20, 300)))
   })
 
   output$histHap <- renderPlot({
@@ -1504,7 +1761,7 @@ shinyServer(function(input, output, session) {
     #     nIndiv <- ifelse(input$selectIndiv == "ALL", panelParam$n.indiv, 1)
     #
     #     haplo.filter <- haplo.sum %>%
-    #       filter(depth >= filterParam$minRead, locus == input$selectLocus, allele.balance >= filterParam$minAllele)
+    #       filter(depth >= filterParam$minRD, locus == input$selectLocus, allele.balance >= filterParam$minAR)
     #     if(input$topTwo)
     #       haplo.filter <- haplo.filter %>% filter(rank <= 2)
     #     if (input$selectIndiv != "ALL")
@@ -1531,15 +1788,15 @@ shinyServer(function(input, output, session) {
 
     all.hap <- unique(allelic.freq.tbl$hap1)
     allelic.freq.tbl <- allelic.freq.tbl %>% mutate(hap1 = paste0(hap1,
-                                               " (",
-                                               as.numeric(factor(hap1, levels=all.hap)),
-                                               ")"))
+                                                                  " (",
+                                                                  as.numeric(factor(hap1, levels=all.hap)),
+                                                                  ")"))
 
     haplo.tot.read.tbl <- update.Haplo.file() %>%
       filter(
-        depth >= filterParam$minRead,
+        depth >= filterParam$minRD,
         locus == input$selectLocus,
-        allele.balance >= filterParam$minAllele
+        allele.balance >= filterParam$minAR
       ) %>%
       group_by(haplo) %>%
       summarise(tot.depth = sum(depth)) %>%
@@ -1560,11 +1817,12 @@ shinyServer(function(input, output, session) {
       xlab("observed freq") +
       ylab("haplotype") +
       xlim(c(0,1.1))+
-      theme_bw()
+      theme_bw()+
+      theme(plot.margin = unit(c(2, 0, 2, 0), "mm"))
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
-           ifelse(input$selectLocus == "ALL", 0, 400))
+           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*30, 300)))
   })
 
 
@@ -1577,32 +1835,14 @@ shinyServer(function(input, output, session) {
         is.null(input$selectDB) || is.null(locusPg$l))
       return ()
 
-    haplo.sum <- update.Haplo.file()
-    if (is.null(haplo.sum))
-      return ()
+    haplo.filter <- Filter.haplo.sum()
 
-
-    haplo.filter <- haplo.sum %>%
-      filter(
-        depth >= filterParam$minRead,
-        locus == input$selectLocus,
-        allele.balance >= filterParam$minAllele
-      )
-
-    #if(input$topTwo)
-    haplo.filter <- haplo.filter %>% filter(rank <= 2)
-    if (input$selectIndiv != "ALL")
-      haplo.filter <-
-      haplo.filter %>% filter(id == input$selectIndiv)
-    if (input$selectGroup != "ALL")
-      haplo.filter <-
-      haplo.filter %>% filter(group == input$selectGroup)
-
-    if (nrow(haplo.filter) == 0)
+    if (is.null(haplo.filter))
       return()
 
 
     haplo.filter <- haplo.filter %>%
+      filter(rank <= 2) %>%
       group_by(locus, id) %>%
       arrange(-depth) %>%
       summarise(
@@ -1634,8 +1874,8 @@ shinyServer(function(input, output, session) {
 
     freq.hap <- freq.hap %>% ungroup() %>% mutate(re.hap1 = factor(as.numeric(factor(re.hap1, levels=all.hap)),
                                                                    levels=1:length(all.hap)),
-                                    re.hap2 = factor(as.numeric(factor(re.hap2, levels=all.hap)),
-                                                     levels=1:length(all.hap)))
+                                                  re.hap2 = factor(as.numeric(factor(re.hap2, levels=all.hap)),
+                                                                   levels=1:length(all.hap)))
 
     ggplot(haplo.filter,
            aes(
@@ -1646,7 +1886,7 @@ shinyServer(function(input, output, session) {
            )) +
       geom_point() +
       xlab("haplotype 2") +
-      ylab("haplotype 1") +
+      ylab("") +
       geom_point(
         data = freq.hap,
         aes(
@@ -1662,11 +1902,15 @@ shinyServer(function(input, output, session) {
       scale_size_continuous(range = c(3, 20), guide = FALSE) +
       scale_x_discrete(limits=1:length(all.hap))+
       scale_y_discrete(limits=1:length(all.hap))+
-      theme_bw()
+      theme_bw()+
+      theme(#axis.text.y = element_blank(),
+        #axis.ticks.y = element_blank(),
+        #panel.margin = unit(0, 'mm'),
+        plot.margin = unit(c(2, 0, 2, 0), "mm"))
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
-           ifelse(input$selectLocus == "ALL", 0, 400))
+           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*30, 300)))
   })
 
   output$hapByGroupPlot <- renderPlot({
@@ -1709,9 +1953,75 @@ shinyServer(function(input, output, session) {
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
-           ifelse(input$selectLocus == "ALL", 0, 300))
+           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*20, 300)))
   })
 
+
+  ## filter panel
+
+
+  output$RDnARplot <- renderPlot({
+        if (is.null(input$selectIndiv) ||
+        input$selectDB == "" ||
+        is.null(input$selectDB) || is.null(locusPg$l))
+      return ()
+
+
+    rd.lower.bound <- max(0, filterParam$minRD-1)
+    rd.upper.bound <- filterParam$minRD+1
+    ar.lower.bound <- max(0, filterParam$minAR - 0.05)
+    ar.upper.bound <- min(1, filterParam$minAR +0.05)
+
+
+    readDepthRange <- c(0, 1, 5, 10, 25, 50, 100, filterParam$minRD, rd.lower.bound, rd.upper.bound)
+    allelicFracRange <- c(0, 0.1, 0.2, 0.4, 0.8, 1,filterParam$minAR, ar.lower.bound, ar.upper.bound)
+    rd.af.grid <- expand.grid(unique(allelicFracRange), unique(readDepthRange))
+
+    hap.sel <- Min.filter.haplo()
+    if(is.null(hap.sel)) return()
+    hap.sel <- hap.sel %>% filter(rank <=2)
+
+    label.grid <- apply(rd.af.grid, 1, function(i){
+      af<-i[1]
+      rd<-i[2]
+        hap.sel %>%
+      filter(depth >= rd,
+             allele.balance >= af) %>%
+          group_by(locus) %>%
+          summarise(num.hap = length(unique(haplo)), num.pass.indiv = length(unique(id))) %>%
+          ungroup() %>%
+          summarise(descr = paste0(sum(num.hap),
+                                " hap,\n",
+                                 round(mean(num.pass.indiv,na.rm = T)),
+                                 " indiv"
+                                #"(",
+                                 #round(mean(num.pass.indiv)*100/panelParam$n.indiv,2),
+                                 #"%)"
+                                ))
+      }) %>% bind_rows()
+
+    rd.af.grid.tbl <- cbind(rd.af.grid, label.grid)
+    colnames(rd.af.grid.tbl) <- c("af", "rd", "content")
+
+    rd.af.grid.tbl <- rd.af.grid.tbl %>%
+      group_by(af,rd)%>%
+      mutate(color.grp = 1*(filterParam$minRD==rd) + (1*filterParam$minAR==af))
+
+    ggplot(rd.af.grid.tbl, aes(x=factor(rd), y=factor(af))) +
+      geom_tile(color="black", aes(fill=factor(color.grp)))+
+      geom_text(aes(label=content))+
+      theme_bw()+
+      theme(legend.position = "none",
+            axis.ticks = element_line(size = 0))+
+      scale_x_discrete(expand = c(0, 0))+
+      scale_y_discrete(expand = c(0, 0))+
+      xlab("min. read depth")+
+      ylab("min. allelic ratio")+
+      scale_fill_manual(values=c("#FDE1E1","#FFAFAD","#FF8582"))
+
+
+
+  }, height =400)
 
 
 
@@ -1754,23 +2064,15 @@ shinyServer(function(input, output, session) {
         write.csv(haplo.all, file)
       }
       if (isolate(input$selectTbl) ==  "observed variants (unfiltered)") {
-        haplo.filter <- update.Haplo.file()
-        if (is.null(haplo.sum)) return ()
-        if (input$selectGroup != "ALL")
-          haplo.filter <- haplo.filter %>% filter(group == input$selectGroup)
-        if (input$selectLocus != "ALL")
-          haplo.filter <- haplo.filter %>% filter(locus == input$selectLocus)
-        if (input$selectIndiv != "ALL")
-          haplo.filter <-haplo.filter %>% filter(id == input$selectIndiv)
-
-        haplo.all <- haplo.filter %>% rename("indiv.ID" = id)
+        if (is.null(Min.filter.haplo())) return()
+        haplo.all <- Min.filter.haplo() %>% rename("indiv.ID" = id)
         write.csv(haplo.all, file)
       }
       if (isolate(input$selectTbl) ==  "observed variants (filtered)") {
-
+        if (is.null(Filter.haplo.sum())) return()
         haplo.all <- Filter.haplo.sum() %>% rename("indiv.ID" = id)
         write.csv(haplo.all, file)
-            }
+      }
 
       if (isolate(input$selectTbl) == "SNP report") {
         haplo.summaryTable <- haplo.summaryTbl()
@@ -1794,8 +2096,8 @@ shinyServer(function(input, output, session) {
   )
 
   output$haploTbl <- DT::renderDataTable({
-  #observeEvent(input$updateTable, {
-  #observeEvent(input$selectTbl, {
+    #observeEvent(input$updateTable, {
+    #observeEvent(input$selectTbl, {
 
     if (input$selectTbl == "reported indiv haplotype") {
       if (is.null(haplo.freqTbl())) return()
@@ -1820,14 +2122,25 @@ shinyServer(function(input, output, session) {
         left_join(haplo.all, haplo.isAccept, by = c("locus"))
     }
 
-    if (input$selectTbl == "observed variants") {
+    if (input$selectTbl ==  "observed variants (unfiltered)") {
+      haplo.filter <- Min.filter.haplo()
+      if (is.null(haplo.filter)) return()
+
+      haplo.all <- haplo.filter %>% rename("indiv.ID" = id) %>%
+        select(-sum.Phred.C, -max.Phred.C)
+      
+    }
+
+
+    if (input$selectTbl == "observed variants (filtered)") {
       if (is.null(Filter.haplo.sum())) return()
 
       haplo.all <-
         Filter.haplo.sum() %>% rename("Individual ID" = id) %>%
-        select(-logP.call,-logP.miscall)
+        select(-sum.Phred.C, -max.Phred.C)
+      
+      #if ("mapq" %in% colnames(haplo.all)) haplo.all <- haplo.all %>% select(-mapq)
 
-      if ("sumP.call" %in% colnames(haplo.all)) haplo.all <- haplo.all %>% select(-sumP.call)
     }
 
     if (input$selectTbl == "SNP report") {
@@ -1850,10 +2163,10 @@ shinyServer(function(input, output, session) {
 
 
     #output$haploTbl <- DT::renderDataTable({
-      DT::datatable(haplo.all, options = list(lengthMenu = list(c(5, 15, -1), c(
-        '5', '15', 'All'
-      )),
-      pageLength = 15))
+    DT::datatable(haplo.all, options = list(lengthMenu = list(c(5, 15, -1), c(
+      '5', '15', 'All'
+    )),
+    pageLength = 15))
     #})
 
   })
@@ -1947,23 +2260,23 @@ shinyServer(function(input, output, session) {
 
     #cat(file=stderr(), dim(freq.matrix),"<- freq matrix----\n")
     if(run.result$n.group > 1) {
-    hap.freq.stat <-
-      data.frame(t(apply(expand.grid(1:(run.result$n.group), 1:(run.result$n.haplo)),
-                         1,
-                         function(i)
-                           c(
-                             group = run.result$group[i[1]],
-                             hap = paste0(run.result$haplo[i[2]],
-                                          " (",
-                                          i[2],
-                                          ")",
-                                          collapse = ""),
-                             mean = mean(freq.matrix[i[1], i[2], ]),
-                             st.CI = quantile(freq.matrix[i[1], i[2], ], prob =
-                                                0.05),
-                             end.CI = quantile(freq.matrix[i[1], i[2], ], prob =
-                                                 0.95)
-                           ))), stringsAsFactors = F)
+      hap.freq.stat <-
+        data.frame(t(apply(expand.grid(1:(run.result$n.group), 1:(run.result$n.haplo)),
+                           1,
+                           function(i)
+                             c(
+                               group = run.result$group[i[1]],
+                               hap = paste0(run.result$haplo[i[2]],
+                                            " (",
+                                            i[2],
+                                            ")",
+                                            collapse = ""),
+                               mean = mean(freq.matrix[i[1], i[2], ]),
+                               st.CI = quantile(freq.matrix[i[1], i[2], ], prob =
+                                                  0.05),
+                               end.CI = quantile(freq.matrix[i[1], i[2], ], prob =
+                                                   0.95)
+                             ))), stringsAsFactors = F)
     }
     else{
       hap.freq.stat <-
@@ -2065,19 +2378,19 @@ shinyServer(function(input, output, session) {
 
     # gather empiricial result for comparison
     haplo.filter <- srhapPg$data.table %>%
-      filter(depth >=filterParam$minRead,
+      filter(depth >=filterParam$minRD,
              rank <= 2,
-             allele.balance >= filterParam$minAllele) %>%
+             allele.balance >= filterParam$minAR) %>%
       group_by(group, id) %>%
       arrange(-depth) %>%
       summarise(
         haplotype.pair = ifelse(length(depth) == 1,
-                             paste0(sum(which(run.result$haplo==haplo[1])),
-                                    "/",
-                                    sum(which(run.result$haplo==haplo[1]))),
-                             paste0(sort(c(sum(which(run.result$haplo==haplo[1])),
-                                                  sum(which(run.result$haplo==haplo[2])))),
-                                           collapse = "/")))
+                                paste0(sum(which(run.result$haplo==haplo[1])),
+                                       "/",
+                                       sum(which(run.result$haplo==haplo[1]))),
+                                paste0(sort(c(sum(which(run.result$haplo==haplo[1])),
+                                              sum(which(run.result$haplo==haplo[2])))),
+                                       collapse = "/")))
 
     ggplot(sample.hap.df,
            aes(x = Var1, y = indiv.id, fill = posterior)) +
