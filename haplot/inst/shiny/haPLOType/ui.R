@@ -4,7 +4,7 @@ library(shinyBS)
 # Define UI for application that draws a histogram
 shinyUI(
   fluidPage(
-    style = "padding-top: 180px;z-index: -1;",
+    style = "padding-top: 180px;z-index: -1;", #180
     # Application title
     #titlePanel("Haplotype Viewer"),
     absolutePanel(
@@ -13,20 +13,29 @@ shinyUI(
       left = 0,
       right = 0,
       fixed = TRUE,
-      div(style = "padding: 5px 5px 1px; border-bottom: 1px solid #CCC; background: #CFCFCD",
+      div(style = "padding: 10px 4px 0px 4px; border-bottom: 0px solid #CCC; margin-bottom: 0px; background: #F3FCFF",
           fluidRow(
             #         column(2,
             #                column(8,offset=2,"HapPLOType",style="margin-top:5%;font-family:helvetica; font-size:400%"),
             #                column(2)),
+
+            column(12,
+                   tabsetPanel(
+                     tabPanel("> field selection",
+                   #bsCollapse(id = "collapseFilter", open = "+ microhaplotype filter:",
+                              #bsCollapsePanel("> select group, individuals, loci:",
+                                            
+                                              
+                              
             column(
               12,
               column(
-                3,
+                6,
                 column(2,
-                       "Group:", style = "margin-top:20px;font-weight:bold; padding-left:0px",
-                       offset = 1),
+                       "Group:", style = "margin-top:21px;font-weight:bold; padding-left:0px",
+                       offset = 0),
                 column(
-                  9,
+                  8,
                   selectInput("selectGroup", label = "", "ALL", selected = "ALL"),
                   style = "margin-top:-10px;margin-bottom:-10px;"
                 ),
@@ -43,8 +52,8 @@ shinyUI(
                 style = "padding-left:0px"
               ),
               column(
-                4,
-                column(1, "Indiv:", style = "margin-top:20px;font-weight:bold; padding-left:0px"),
+                6,
+                column(2, "Indiv:", style = "margin-top:21px;font-weight:bold; padding-left:0px"),
                 column(
                   8,
                   selectInput("selectIndiv", label = "", "ALL", selected = "ALL"),
@@ -61,86 +70,63 @@ shinyUI(
                 style = "margin-top:10px;padding:0 0% 0 0%; margin-left: 0px;"),
                 style = "padding-left:0px"
               ),
-              column(1, "Locus:", style = "margin-top:20px;font-weight:bold; padding-left:30px"),
-              column(
-                4,
+              column(10,
+              column(2, "Locus:", style = "margin-top:22px;font-weight:bold; padding-left:0px"),
                 column(
-                  10,
+                  6,
                   selectInput("selectLocus", label = "", "ALL", selected = "ALL"),
-                  style = "margin-top:-10px;margin-bottom:-10px; margin-left: 0px;padding-left:0px"
+                  style = "margin-top:-10px;margin-bottom:-10px; margin-left: -5%;padding-left:0px"
                 ),
-                column(
-                  1,
-                  actionButton("locusBack", label = "<", width = "80%"),
-                  style = "margin-top:10px; padding: 0 0% 0 0%",
-                  offset = 0
-                ),
-                column(1, actionButton(
-                  "locusFor", label = ">", width = "80%"
-                ),
-                style = "margin-top:10px;padding:0 0% 0 0%; margin-left: 0px;"),
-                style = "padding-left:0px"
-              )
-            ),
-            #                column(4, column(1,"Indiv:",style="margin-top:20px;font-weight:bold; padding-left:0px"),
-            #                       column(9, selectInput("selectIndiv", label ="","ALL",selected = "ALL"),
-            #                              style="margin-top:-10px;margin-bottom:-10px;"),
-            #                       column(1,actionButton("indivBack", label="<", width="80%"),
-            #                              style="margin-top:10px; padding: 0 0% 0 0%", offset=0),
-            #                       column(1,actionButton("indivFor", label=">", width="98%"),
-            #                              style="margin-top:10px;padding:0 0% 0 0%; margin-left: 0px;"),
-            #                       style="padding-left:0px")),
-            #         column(5,
-            #                column(12,
-            #                       column(1, "Panel:",style="margin-top:20px;font-weight:bold"),
-            #                       column(11, selectInput("selectDB", label ="","",selected = NULL, width="100%"),
-            #                              style="padding-right: 0px; margin-top:0%;padding-left:10%; padding-right: 0px;"),
-            #                       style="padding-right: 0px; margin-top:0%;padding-left:0%; padding-right: 0px;
-            #                       margin: -1% 0 0 0;"),
-            #                               column(12,
-            #                                      column(1,"Locus:",style="margin-top:20px;font-weight:bold"),
-            #                                      column(8,selectInput("selectLocus", label ="","ALL",selected = "ALL", width="90%"),
-            #                                             style="padding-right: 0px; margin-top:0%;padding-left:10%; padding-right: 0px;"),
-            #                                      column(1,actionButton("locusBack", label="<", width="80%"),
-            #                                             style="margin-top:20px; padding: 0 0% 0 0%", offset=1),
-            #                                      column(1,actionButton("locusFor", label=">", width="80%"),
-            #                                             style="margin-top:20px;padding:0 0% 0 0%; margin-left: 0px;"),
-            #                                      style="padding-right: 0px;padding-left:0px; padding-right: 0px;margin: -3% 0 0 0;"),
-            #                #column(1,actionButton("locusBack", label="<<"),style="margin-top:10%; padding-right: 0px;"),
-            #                #column(1,actionButton("locusFor", label=">>"),style="margin-top:10%; padding-right: 0px;"),
-            #                column(12,
-            #                       column(1,"Indiv:",style="margin-top:20px;font-weight:bold"),
-            #                       column(8,selectInput("selectIndiv", label = "","ALL", selected = "ALL",width="90%"),
-            #                              style="padding-right: 0px; margin-top:0.3%;padding-left:10%; padding-right: 0px;"),
-            #                       column(1,actionButton("indivBack", label="<",width="80%"),
-            #                              style="margin-top:20px; padding: 0 0% 0 0%", offset=1),
-            #                       column(1,actionButton("indivFor", label=">",width="80%"),
-            #                              style="margin-top:20px; padding: 0 0% 0 0%"),
-            #                       style="padding: 0 0 0 0; margin: -3% 0 0 0;"
-            #                )
-            #         ),
+              column(2,
+                     column(
+                       5,
+                       actionButton("locusBack", label = "<", width = "80%"),
+                       style = "margin-top:10px; padding: 0 0% 0 0%",
+                       offset = 0
+                     ),
+                     column(5, actionButton(
+                       "locusFor", label = ">", width = "80%"
+                     ),
+                     style = "margin-top:10px;padding:0 0% 0 0%; margin-left: 0px;"),
+                     style = "padding-left:0px"
+              ),
+              
+              style = "padding-left:0px"
+              
+              ),
+              #style= "margin-bottom:10px"
+              style="background:#F7F7F7; padding-top:8px;padding-bottom:10px"
+            ),#,
+            #column(12,div(style = "padding:0.5px; background:white; margin-top: 10px; margin-bottom:10px")),
+            #style = "primary"),
+            
+            style="padding-bottom:20px"
+                     ),
+            #bsCollapse(id = "collapseFilter", open = "+ microhaplotype filter:",
+           #            bsCollapsePanel("+ microhaplotype filter:", 
+                                       tabPanel("+ read criteria", 
             column(
               12,
               column(
-                7,
+                6,
                 #column(3, "Filter (per indiv) " ,style = "margin-top:35px;font-weight:bold;padding-left:25px;"),
-                column(3, "Minimal read depth (indiv):", style = "padding-left:25px; margin-top:4%;font-weight:light"),
-                column(3, numericInput(#sliderInput(
+                #column(4, "Filter (per indiv)", style = "padding-left:25px; margin-top:3%;font-weight:light"),
+                column(6, numericInput(#sliderInput(
                   "coverageMin",
-                  "",
+                  "Minimal Read Depth",
                   min = 0,
                   #max = 200,
                   value = 0
-                ),style = "margin-top:10px"),
-                column(1, "and",style = "margin-top:35px;padding-left:15px;font-weight:bold"),
-                column(2, "Minimal allelic ratio:", style = "margin-top:4%;padding-left:2%;font-weight:light"),
-                column(3, sliderInput(
+                ),style = "margin-top:10px;text-align:center"),
+                #column(1, "and",style = "margin-top:35px;padding-left:15px;font-weight:bold"),
+                #column(2, "Min. allelic ratio:", style = "margin-top:4%;padding-left:2%;font-weight:light"),
+                column(6, sliderInput(
                   "minAlleleRatio",
-                  "",
+                  "Minimal Allelic Ratio",
                   min = 0,
-                  max = 1,
+                  max = 1.000,
                   value = 0
-                ),style = "margin-top:0px"),
+                ),style = "margin-top:10px;text-align:center"),
                 style = "padding: 0 0 0 0; margin: -1% 0 0 0;"
               ),
               column(
@@ -149,23 +135,80 @@ shinyUI(
                 #                       column(1,checkboxInput("filterCheck", label = "", value = FALSE),
                 #                       style="margin-top:10px;"),
                 #                       column(8,textInput("filter", label = "", value = "Enter filter...")),
-                column(12, actionButton("updateFilter", label = "update"), style =
-                         "margin-top:17px; padding-right: 0px;")
+                column(10, verticalLayout(actionButton("updateFilter", label = "apply",                                            
+                                                       width="100%",
+                                                       style="text-align:center"),
+                                          actionButton(
+                                            "filterSave",
+                                            "save",
+                                            #icon("hdd-o"),
+                                            width="100%",
+                                            style = "margin-top:10px; text-align:center"
+                                          )), style =
+                         "margin-top:5px; padding-right: 0px;")
               ),
-              #column(12, "Keep only the top 2 most common Haplotypes",style="margin-top:10px;font-weight:bold"),
+              #column(12, "Keep only top two common reads",style="margin-top:10px;font-weight:bold"),
               #column(12, h5("Post Filtered Table:"),downloadButton('downloadData', 'Download'), align="center",
               #offset=0,
               #style="padding: 0 0 0 0; margin: -3% 0 0 0;",
               #tags$style(type='text/css', "#downloadData { vertical-align:center; height: 40px;margin-top:0px;font-size:20px}")),
               #style="padding: 0 0 0 0; margin: 0% 0 0 0;")
               column(
-                2,
-                checkboxInput("topTwo", label = "Keeping only the top 2 common haplotypes", value = FALSE),
-                style = "margin-top:5px;"
-              )
-
-
-            )
+                4,
+                checkboxGroupInput("filterOpts", label = "", choices=list("keeps only top two haplotypes (per indiv)"=1)),
+                
+                style = "margin-top:-13px;"
+              ),
+              style="background:#F7F7F7; padding-top:10px")#,style = "primary")))
+            #style="margin-bottom:10px"
+                                       ),
+           tabPanel("+ locus annotation",
+                    column(12,
+                    column(
+                      5,
+                      column(3, "Locus:", style ="margin-top:21px;font-weight:bold; padding-left:0px"),
+                      column(9, textOutput("locusSelect1"), style =
+                               "margin-left: 0px; color:grey; margin-top:21px;padding-left: 0px")
+                    ),
+                    column(5,
+                    column(2, "status:",style = "margin-top:23px;font-weight:normal; padding-left:0px"),
+                    column(4, 
+                           selectInput("locusAccept", 
+                                       "",
+                                       choices=c("Accept","Reject","NA"),
+                                      selected="NA"),
+                           style = "margin-top:-8px; margin-bottom:0px"
+                    ),
+                    column(5,
+                           checkboxInput("rewriteFilter", label = "save crit. cutoff", value = TRUE),
+                           style = "margin-top:10px; margin-bottom:0px",
+                           offset=1
+                    )
+                    ),
+                    
+                    column(2,
+                    actionButton(
+                      "annotateSave",
+                      "save",
+                      icon("hdd-o"),
+                      style = "margin-top:10px; padding-right: 0px; text-align:center",
+                      width = "90%"
+                    ),
+                    offset=0
+                    ),
+                    
+                    column(12,
+                    column(1, "Note:", style ="margin-top:5px; padding-left:0px"),
+                    column(11,
+                           textInput("locusComment", label = "", value = "", width="100%"),
+                           style = "margin-top:-20px;padding-top:0px;padding-right: 0px;padding-left:0px")),
+                    #style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 40px; padding-top:15px; padding-bottom:20px"
+                    style="background:#F7F7F7; padding-top:2px;padding-left:0px; margin-left:0px"
+                    )
+           )
+           ))#,
+           #column(2, h5(" haPLOT "), style="text-align: right")
+            
           ))
     ),
     #hr(),
@@ -192,9 +235,9 @@ shinyUI(
                    offset = 1
                  )
                ))),
-
+      
       # group label panel
-      navbarMenu("Summary Plots",
+      navbarMenu("Summary Info",
                  tabPanel(h5("by Group"),
                           # fluidRow(column(
                           #   4,
@@ -204,19 +247,19 @@ shinyUI(
                           # ),
                           # style = "border-bottom: 2px dashed #d9d9d9;  margin-bottom: 10px; padding-top:5px"),
                           fluidRow(
-                            column(3, plotOutput("nIndivByGroupPlot", height = "auto")),
-                            column(3, plotOutput("fIndivByGroupPlot", height =
+                            #column(3, plotOutput("nIndivByGroupPlot", height = "auto")),
+                            column(5, plotOutput("fIndivByGroupPlot", height =
                                                    "auto")),
-                            column(3, plotOutput("nLociByGroupPlot", height =
-                                                   "auto")),
-                            column(3, plotOutput("fLociByGroupPlot", height =
+                            #column(3, plotOutput("nLociByGroupPlot", height =
+                            #                       "auto")),
+                            column(5, plotOutput("fLociByGroupPlot", height =
                                                    "auto"))
                           )),
-
-
-
-
-
+                 
+                 
+                 
+                 
+                 
                  tabPanel(
                    h5("by Individual"),
                    fluidRow(
@@ -226,14 +269,14 @@ shinyUI(
                        column(9, h5(textOutput("indivSelect")), style =
                                 "margin-left: 0px; color:grey")
                      ),
-
+                     
                      #column(4,  column(3, h5("By Indiv:"), offset=0),
                      #       column(9, h6(textOutput("indivSelect")), style="margin-left: 0px; color:grey")),
                      column(4, column(
                        12,
-                       column(2, h6("Display: ")),
+                       column(4, h6("Display:")),
                        column(
-                         4,
+                         5,
                          selectInput(
                            "indivPerDisplay",
                            label = NULL,
@@ -248,12 +291,11 @@ shinyUI(
                            ),
                            selected =
                              15
-                         ),
-                         offset = 1
+                         )
                        ),
-                       column(5, h6("indiv per slide"))
-                     )),
-                     column(4, column(
+                       column(2, h6("indiv"))
+                       )),
+                     column(5, column(
                        12,
                        column(1, h6("Page:")),
                        column(
@@ -268,12 +310,12 @@ shinyUI(
                          offset = 1
                        ),
                        column(1, h6(" of ")),
-                       column(1, h6(textOutput("maxIndivPage"))),
-                       column(
-                         2,
-                         actionButton("updateIndivSizeDisplay", label = "refresh"),
-                         offset = 1
-                       )
+                       column(1, h6(textOutput("maxIndivPage")))#,
+                       # column(
+                       #   2,
+                       #   actionButton("updateIndivSizeDisplay", label = "refresh"),
+                       #   offset = 1
+                       # )
                      )),
                      style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 20px; padding-top:15px"
                    ),
@@ -306,9 +348,9 @@ shinyUI(
                    #                         id = "plot1_brush",
                    #                         direction = "y",
                    #                         resetOnNew = TRUE))),
-
-
-
+                   
+                   
+                   
                    column(12, h1("")),
                    br(),
                    fluidRow(
@@ -324,7 +366,7 @@ shinyUI(
                        column(9, h5(textOutput("locusSelect")), style =
                                 "margin-left: 0px; color:grey")
                      ),
-
+                     
                      #            column(5,column(12,
                      #                            column(2,h5("Locus:"),style="margin-top:0%;font-weight:bold"),
                      #                            column(8,selectInput("selectLocus", label ="","ALL",selected = "ALL", width="90%"),
@@ -336,9 +378,9 @@ shinyUI(
                      #style="padding-right: 0px;padding-left:0px; padding-right: 0px;margin: -3% 0 0 0;")),
                      column(4, column(
                        12,
-                       column(2, h6("Display: ")),
+                       column(4, h6("Display: ")),
                        column(
-                         4,
+                         5,
                          selectInput(
                            "locusPerDisplay",
                            label = NULL,
@@ -356,9 +398,9 @@ shinyUI(
                          ),
                          offset = 1
                        ),
-                       column(5, h6("locus per slide"))
+                       column(2, h6("loci"))
                      )),
-                     column(4, column(
+                     column(5, column(
                        12,
                        column(1, h6("Page:")),
                        column(
@@ -373,12 +415,12 @@ shinyUI(
                          offset = 1
                        ),
                        column(1, h6(" of ")),
-                       column(1, h6(textOutput("maxlocusPage"))),
-                       column(
-                         2,
-                         actionButton("updateLocusSizeDisplay", label = "refresh"),
-                         offset = 1
-                       )
+                       column(1, h6(textOutput("maxlocusPage")))#,
+                       # column(
+                       #   2,
+                       #   actionButton("updateLocusSizeDisplay", label = "refresh"),
+                       #   offset = 1
+                       # )
                      )),
                      style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 20px; padding-top:15px"
                    ),
@@ -406,26 +448,26 @@ shinyUI(
                    )
                  )
       ),
-
-      navbarMenu("Filter Status",
-
+      
+      navbarMenu("Filter Analysis",
+                 
                  # table panel
                  tabPanel(
-                   h5("Filter Table"),
+                   h5("Broad Summary"),
                    fluidRow(
                      column(12, plotOutput("RDnARplot", height = "auto"))
                    )
                  ),
-
+                 
                  tabPanel(
-                   h5("Distribution Cutoff"),
+                   h5("Distribution Plots"),
                    fluidRow(
                      column(5, plotOutput("allReadDepth", height = "auto",
-                            # hover = hoverOpts(
-                            #                 id = "RDplot_hover",
-                            #                 delay = 500,
-                            #                 delayType = "debounce"
-                            #               ),
+                                          # hover = hoverOpts(
+                                          #                 id = "RDplot_hover",
+                                          #                 delay = 500,
+                                          #                 delayType = "debounce"
+                                          #               ),
                                           dblclick = dblclickOpts(id = "RDplot_dblclick")),
                             offset=2),
                      column(5, plotOutput("allAllelicRatio", height = "auto",
@@ -435,8 +477,8 @@ shinyUI(
                                           #   delayType = "debounce"
                                           # ),
                                           dblclick = dblclickOpts(id = "ARplot_dblclick")
-                                          )),
-                     column(12, h4("Microhaplotypes that pass the critera:"))
+                     ))#,
+                     #column(12, h4("Microhaplotypes that pass the critera:"))
                    ),
                    bsAlert("cutoffhapAlert"),
                    fluidRow(
@@ -447,51 +489,23 @@ shinyUI(
                    fluidRow(
                      div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
                    )
-                 )
-
-      ),
-
+                 ),
+                 
+      
       #locus assessement panel
-
+      
       tabPanel(
-        "Haplotype",
+        h5("Finalized Haplotype"),
         fluidRow(
-          bsAlert("hapAlert"),
-          column(
-            4,
-            column(3, h5("Locus:"), offset = 0),
-            column(9, h5(textOutput("locusSelect1")), style =
-                     "margin-left: 0px; color:grey")
-          ),
-          column(3, column(
-            12,
-            column(6, h5("Current status: ")),
-            column(6, h5(textOutput(
-              "locusAcceptStatus"
-            )), style = "margin-left: 0px; color:grey")
-          )),
-          column(3, column(
-            12,
-            column(
-              2,
-              actionButton("acceptLocus", label = "Accept", style = "font-weight: bold"),
-              offset = 1
-            ),
-            column(
-              2,
-              actionButton("rejectLocus", label = "Reject", style = "font-weight: bold"),
-              offset = 4
-            )
-          )),
-          style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 40px; padding-top:15px; padding-bottom:20px"
-
-          #style = "border-bottom: 2px dashed #d9d9d9; border-top: 2px dashed #d9d9d9; margin-bottom: 5px; margin-top: 10px; padding-bottom: 15px; padding-top:15px"
+          bsAlert("hapAlert")
         ),
         fluidRow(
+          column(12, textOutput("hwClicked")),
           column(6, plotOutput("histHap", height =
                                  "auto")),
           column(6, plotOutput("PairWiseHap", height =
-                                 "auto")),
+                                 "auto", 
+                               click = "HWplotClick")),
           column(12, plotOutput("hapByGroupPlot", height =
                                   "auto")),
           column(12, plotOutput("hapSeq", height = "auto"))
@@ -499,47 +513,11 @@ shinyUI(
         fluidRow(
           div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
         )
+      )
       ),
-
-      # table panel
+      
       tabPanel(
-        "Table",
-        fluidRow(column(
-          6,
-          column(4, h5("Select Table:"), offset =
-                   0),
-          column(
-            8,
-            selectInput(
-              "selectTbl",
-              label = "",
-              c("observed variants (unfiltered)","observed variants (filtered)",
-                "reported indiv haplotype", "SNP report"),
-              selected = "observed variants (unfiltered)"
-            ),
-            style = "padding-right: 0px; margin-top:-20px;margin-bottom:-20px;padding-left:0%; padding-right: 0px;"
-          )
-        ),
-        column(6, column(
-          12,
-          #column(6, actionButton('updateTable', 'Update')),
-          column(6, downloadButton('downloadData', 'Download'))
-        )),
-        style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 40px; padding-top:15px; padding-bottom:20px"),
-
-        #style = "border-bottom: 2px dashed #d9d9d9; border-top: 2px dashed #d9d9d9; margin-bottom: 5px; margin-top: 10px; padding-bottom: 15px; padding-top:15px"),
-
-
-
-        column(12, DT::dataTableOutput('haploTbl'),
-               style = "padding-bottom: 40px; border-bottom: 8px solid white; background: white"),
-        fluidRow(
-          div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
-        )
-      ),
-
-      tabPanel(
-        "SrMicroHap",
+        "Inferential Analysis",
         "SrMicroHap is sensitive only to the changes in \"Locus\" selector tab\n",
         wellPanel(fluidRow(
           column(
@@ -624,7 +602,63 @@ shinyUI(
           div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
         )
       ),
-
+      # table panel
+      tabPanel(
+        "Output",
+        fluidRow(column(
+          6,
+          column(4, h5("Select Table:"), offset =
+                   0),
+          column(
+            8,
+            selectInput(
+              "selectTbl",
+              label = "",
+              c("observed variants (unfiltered)","observed variants (filtered)",
+                "reported indiv haplotype", "SNP report", "locus annotation"),
+              selected = "observed variants (unfiltered)"
+            ),
+            style = "padding-right: 0px; margin-top:-20px;margin-bottom:-20px;padding-left:0%; padding-right: 0px;"
+          )
+        ),
+        column(6, column(
+          12,
+          #column(6, actionButton('updateTable', 'Update')),
+          column(6, downloadButton('downloadData', 'Download'))
+        )),
+        style = "border-bottom: 1px double #d9d9d9;  margin-bottom: 40px; padding-top:15px; padding-bottom:20px"),
+        
+        #style = "border-bottom: 2px dashed #d9d9d9; border-top: 2px dashed #d9d9d9; margin-bottom: 5px; margin-top: 10px; padding-bottom: 15px; padding-top:15px"),
+        
+        
+        
+        column(12, DT::dataTableOutput('haploTbl'),
+               style = "padding-bottom: 40px; border-bottom: 8px solid white; background: white"),
+        fluidRow(
+          div(style = "padding: 20px; border-bottom: 8px solid white; background: white")
+        )
+      ),
+      
+      tabPanel(
+        "About haPlot",
+        column(12,
+        column(8,
+               "
+This shiny app, haPlot, generates various summary plots and tables for the purpose of
+microhaplotype quality control and assessment.
+It provides basic control (under read criteria) such as defining minimal read depth and allelic ratio 
+cutoff to remove any reads that might interefere individual's genotype call. 
+Since the usability and quality of each locus vary case by case, haPlot has an annotation system that
+lets you to keep track the performance for each locus",
+               offset=2
+        )),
+        column(12,
+               column(8,
+                      "Contact & Citation:",
+                      offset=2
+               ))
+      ),
+      
       position = "fixed-bottom"
     ),
     #tags$style(type="text/css", "navbar-static-top{z-index: -1}")),
@@ -636,6 +670,6 @@ shinyUI(
     #),
     #column(4, DT::dataTableOutput('haploSummary')),
     titlePanel("", windowTitle = "HapPLOType: a view to your haplotypes")
-
+    
   )
 )

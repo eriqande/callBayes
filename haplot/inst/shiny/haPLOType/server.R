@@ -23,7 +23,8 @@ shinyServer(function(input, output, session) {
   rds.file <- grep(".rds", dirFiles)
   
   pos.rds.file <- grep("_posinfo.rds", dirFiles)
-  rds.file <- setdiff(rds.file, pos.rds.file)
+  annotate.rds.file <- grep("_annotate.rds", dirFiles)
+  rds.file <- setdiff(rds.file, c(pos.rds.file,annotate.rds.file))
   
 
   if (length(rds.file) > 0) {
@@ -32,8 +33,8 @@ shinyServer(function(input, output, session) {
                       "selectDB",
                       selected = select.file.tem,
                       choices = dirFiles[rds.file])
-    haplo.sum <-
-      readRDS(select.file.tem)  %>% mutate(id = as.character(id))
+    # haplo.sum <-
+    #   readRDS(select.file.tem)  %>% mutate(id = as.character(id))
   }
   else {
     haplo.sum <- NULL
@@ -52,16 +53,54 @@ shinyServer(function(input, output, session) {
   
   extract.pos.file <- reactive({
     pos.file <- strsplit(input$selectDB, split=".rds") %>% unlist %>% paste0(.,"_posinfo.rds")
+    if (!file.exists(pos.file)) return ()
     readRDS(pos.file)
   })
+  
+  # the format structure for the annotate file: contains locus ID (also contains ALL), min read depth, min allelic ratio,
+  # keep status (1=keep), annotation
+  
+  extract.annotate.file <- reactive({
+    annotate.file <- strsplit(input$selectDB, split=".rds") %>% unlist %>% paste0(.,"_annotate.rds")
+    if (!file.exists(annotate.file)) {
+      annotateTab$tbl <- data.frame(locus = panelParam$locus.label,
+                                    min.rd = rep(0, panelParam$n.locus+1),
+                                    min.ar = rep(0, panelParam$n.locus+1),
+                                    status = c("NA",rep("Accept", panelParam$n.locus)),
+                                    comment = rep("", panelParam$n.locus+1),
+                                    stringsAsFactors = F)
+      return()
+    }
+    
+    annotateTab$tbl <- readRDS(annotate.file)
+  })
 
+  update.annotate.field <- reactive({
+    match.indx <- which(annotateTab$tbl$locus == input$selectLocus)
+    updateTextInput(session, 
+                    "locusComment",
+                    value=annotateTab$tbl$comment[match.indx])
+    
+    updateSelectInput(session,
+                      "locusAccept",
+                      selected=annotateTab$tbl$status[match.indx]
+    )
+    updateNumericInput(session,
+                       "minRD",
+                       value=annotateTab$tbl$min.rd[match.indx])
+    updateSliderInput(session,
+                      "minAR",
+                      value=annotateTab$tbl$min.ar[match.indx])
+    return()
+  })
 
   ranges <- reactiveValues(y = NULL, x = NULL)
   rangesH <- reactiveValues(y = NULL)
   locusPg <- reactiveValues(l = NULL, width = NULL)
   indivPg <- reactiveValues(i = NULL, width = NULL)
   groupPg <- reactiveValues(g = NULL, width = 1)
-  hapPg <- reactiveValues(width = NULL)
+  hapPg <- reactiveValues(width = NULL, HW.exp= NULL, HW.obs= NULL, HW.tbl=NULL)
+  annotateTab <- reactiveValues(tbl=NULL)
   srhapPg <- reactiveValues(
     makePlot = FALSE,
     num.iter = NULL,
@@ -133,8 +172,6 @@ shinyServer(function(input, output, session) {
     panelParam$group.label.bare <- group.sorted
     panelParam$n.group <- length(group.sorted)
 
-    panelParam$is.reject <- rep(0, panelParam$n.locus)
-
     updateSelectInput(session,
                       "selectLocus",
                       selected = "ALL",
@@ -147,6 +184,7 @@ shinyServer(function(input, output, session) {
                       "selectGroup",
                       selected = "ALL",
                       choices = panelParam$group.label)
+    
     #updateSelectInput(session,
     #                  "selectTbl",
     #                  selected = "observed variants")
@@ -162,7 +200,12 @@ shinyServer(function(input, output, session) {
 
     Filter.haplo.sum()
     srhapPg$makePlot <- FALSE
-
+    extract.pos.file()
+    
+    extract.annotate.file()
+    update.annotate.field()
+    #cat(file=stderr(), "--", colnames(annotateTab$tbl) %>% unlist, "\n")
+    
   }, priority = -3)
 
   ## updating Locus and individidual choice at the start of the session:
@@ -264,6 +307,7 @@ shinyServer(function(input, output, session) {
     Filter.haplo.sum()
   }, priority = -2)
 
+  
 
   observeEvent(input$selectLocus, {
     indx <-
@@ -275,25 +319,38 @@ shinyServer(function(input, output, session) {
     output$locusSelect1 <- renderText({
       input$selectLocus
     })
+    
+    update.annotate.field()
+    
     if (input$selectLocus != "ALL") {
       output$maxlocusPage <- renderText({
         "1"
       })
       updateNumericInput(session, "locusPage", value = 1, max = 1)
+      updateCheckboxGroupInput(session,
+                               "filterOpts", 
+                               choices=list("keeps only top two haplotypes (per indiv)"=1))
+      
       locusPg$l <- input$selectLocus
       rangesH$y <- c(0, 2)
-      output$locusAcceptStatus <-
-        renderText({
-          ifelse(panelParam$is.reject[indx] == 0, "Accept", "Reject")
-        })
+      # output$locusAcceptStatus <-
+      #   renderText({
+      #     ifelse(panelParam$is.reject[indx] == 0, "Accept", "Reject")
+      #   })
 
       closeAlert(session,"hapLocusAlert")
       closeAlert(session,"cuthapLocusAlert")
     }
     else {
-      output$locusAcceptStatus <- renderText({
-        "NA"
-      })
+      updateCheckboxGroupInput(session,
+                               "filterOpts", 
+                               choices=list("keeps only top two haplotypes (per indiv)"=1,
+                                            "overrides all loci"=2,
+                                            "serves as minimal baseline for all loci"=3))
+      
+      # output$locusAcceptStatus <- renderText({
+      #   "NA"
+      # })
       output$maxlocusPage <-
         renderText({
           paste0(ceiling(
@@ -312,10 +369,10 @@ shinyServer(function(input, output, session) {
       locusPg$l <- panelParam$locus.label.bare[1:end.indx]
       rangesH$y <- c(0, end.indx + 1)
 
-      createAlert(session, "hapAlert", "hapLocusAlert", title = "No Locus selection",
-                                               content = "Need to select a locus", append = FALSE)
-      createAlert(session, "cutoffhapAlert", "cuthapLocusAlert", title = "No Locus selection",
-                                               content = "Need to select a locus", append = FALSE)
+      createAlert(session, "hapAlert", "hapLocusAlert", title = "No Locus selected",
+                                               content = "choose a locus to view content", append = FALSE)
+      createAlert(session, "cutoffhapAlert", "cuthapLocusAlert", title = "choose single locus for more detail",
+                                               content = "choose a locus to view the breakdown by microhaplotype", append = FALSE)
     }
     Filter.haplo.sum()
     #srhapPg$makePlot <- FALSE
@@ -369,7 +426,12 @@ shinyServer(function(input, output, session) {
 
   })
 
-  observeEvent(input$updateLocusSizeDisplay, {
+  observeEvent(input$locusPage, {#updateLocusSizeDisplay, {
+    if(input$locusPage <=0){
+      updateNumericInput(session, "locusPage", value = 1)
+      return()
+    }
+    
     if (input$selectLocus == "ALL") {
       if (input$locusPerDisplay == 100) {
         locusPg$l <- panelParam$locus.label.bare
@@ -431,29 +493,29 @@ shinyServer(function(input, output, session) {
     Filter.haplo.sum()
   })
 
-  observeEvent(input$acceptLocus, {
-    if (input$selectLocus != "ALL") {
-      indx <-
-        isolate(which(panelParam$locus.label.bare == input$selectLocus))
-      panelParam$is.reject[indx] <- 0
-      output$locusAcceptStatus <-
-        renderText({
-          ifelse(panelParam$is.reject[indx] == 0, "Accept", "Reject")
-        })
-    }
-  })
-
-  observeEvent(input$rejectLocus, {
-    if (input$selectLocus != "ALL") {
-      indx <-
-        isolate(which(panelParam$locus.label.bare == input$selectLocus))
-      panelParam$is.reject[indx] <- 1
-      output$locusAcceptStatus <-
-        renderText({
-          ifelse(panelParam$is.reject[indx] == 0, "Accept", "Reject")
-        })
-    }
-  })
+  # observeEvent(input$acceptLocus, {
+  #   if (input$selectLocus != "ALL") {
+  #     indx <-
+  #       isolate(which(panelParam$locus.label.bare == input$selectLocus))
+  #     panelParam$is.reject[indx] <- 0
+  #     output$locusAcceptStatus <-
+  #       renderText({
+  #         ifelse(panelParam$is.reject[indx] == 0, "Accept", "Reject")
+  #       })
+  #   }
+  # })
+  # 
+  # observeEvent(input$rejectLocus, {
+  #   if (input$selectLocus != "ALL") {
+  #     indx <-
+  #       isolate(which(panelParam$locus.label.bare == input$selectLocus))
+  #     panelParam$is.reject[indx] <- 1
+  #     output$locusAcceptStatus <-
+  #       renderText({
+  #         ifelse(panelParam$is.reject[indx] == 0, "Accept", "Reject")
+  #       })
+  #   }
+  # })
 
   observeEvent(input$indivPerDisplay, {
     if (is.null(panelParam$n.indiv))
@@ -502,7 +564,12 @@ shinyServer(function(input, output, session) {
 
   })
 
-  observeEvent(input$updateIndivSizeDisplay, {
+  observeEvent(input$indivPage, { #updateIndivSizeDisplay
+    if(input$indivPage <=0){
+      updateNumericInput(session, "indivPage", value = 1)
+      return()
+    }
+
     if (input$selectIndiv == "ALL") {
       if (input$indivPerDisplay == 100) {
         indivPg$i <- panelParam$indiv.label.bare
@@ -543,6 +610,51 @@ shinyServer(function(input, output, session) {
       Run.SrMicrohap()
     }
   })
+  
+  
+  # observe events on locus annotation tab
+  observeEvent(input$annotateSave, {
+    if(is.null(annotateTab$tbl)) return()
+    
+    match.indx <- which(annotateTab$tbl$locus == input$selectLocus)
+    
+    if(input$rewriteFilter[1]) {
+      annotateTab$tbl$min.rd[match.indx] <-  filterParam$minRD
+      annotateTab$tbl$min.ar[match.indx] <-  filterParam$minAR 
+    }
+    
+    annotateTab$tbl$status[match.indx] <- input$locusAccept
+    annotateTab$tbl$comment[match.indx] <- input$locusComment[1]
+    
+    annotate.file <- strsplit(input$selectDB, split=".rds") %>% unlist %>% paste0(.,"_annotate.rds")
+    saveRDS(annotateTab$tbl, annotate.file)
+    
+  })
+  
+  # observe events on filter save tab
+  observeEvent(input$filterSave, {
+    if(is.null(annotateTab$tbl)) return()
+    if(is.na(input$coverageMin) || input$coverageMin <0) {
+      createAlert(session, "alert", "filterAlert", title = "Invalid input",
+                  content = "Minimum read coverage must be a positive integer", append = FALSE)
+      return()
+    }
+    
+    closeAlert(session, "filterAlert")
+    filterParam$minRD <- input$coverageMin
+    filterParam$minAR <- input$minAlleleRatio
+    Filter.haplo.sum()
+    
+    match.indx <- which(annotateTab$tbl$locus == input$selectLocus)
+    
+    annotateTab$tbl$min.rd[match.indx] <-  filterParam$minRD
+    annotateTab$tbl$min.ar[match.indx] <-  filterParam$minAR 
+    
+    annotate.file <- strsplit(input$selectDB, split=".rds") %>% unlist %>% paste0(.,"_annotate.rds")
+    saveRDS(annotateTab$tbl, annotate.file)
+    
+  })
+  
 
 
   haplo.summaryTbl <- reactive({
@@ -621,7 +733,7 @@ shinyServer(function(input, output, session) {
       filter(depth >= filterParam$minRD,
              allele.balance >= filterParam$minAR)
 
-    if (input$topTwo)
+    if ("1" %in% input$filterOpts)
       haplo.filter <- haplo.filter %>% filter(rank <= 2)
 
     groupPg$width <- dim(haplo.filter)[1]
@@ -689,6 +801,8 @@ shinyServer(function(input, output, session) {
     }
 
 
+    max.haplo <- max(uniqH.perI.tbl$tot.hapl)
+    
     ggplot() +
       geom_point(data = uniqH.perI.tbl, aes(
         x = tot.hapl,
@@ -705,10 +819,13 @@ shinyServer(function(input, output, session) {
       theme(
         legend.position = "bottom",
         panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(0, 0, 0, 0), "mm")
+        panel.border = element_rect(size = 0),
+        axis.line.y = element_line(color="grey", size = 0.5),
+        plot.margin = unit(c(0, 3, 0, 0), "mm")
       ) +
       #scale_x_discrete(breaks= pretty_breaks())+
       ylim(locusPg$l) +
+      scale_x_continuous(limits=c(0,max.haplo+1),breaks=round(seq(1,max.haplo, length.out=4)))+
       coord_cartesian(ylim = rangesH$y)
   }, height = function()
     ifelse(groupPg$width == 0, 0,
@@ -717,11 +834,11 @@ shinyServer(function(input, output, session) {
                input$selectLocus == "ALL",
                ifelse(
                  input$locusPerDisplay == 100,
-                 9 * length(panelParam$locus.label),
-                 9 * as.numeric(input$locusPerDisplay)
+                 10 * length(panelParam$locus.label),
+                 10 * as.numeric(input$locusPerDisplay)
                ),
                1
-             ), 250
+             ), 400
            )))
 
   output$numHapPlot <- renderPlot({
@@ -752,6 +869,7 @@ shinyServer(function(input, output, session) {
         frac.calleable %>% filter(locus == input$selectLocus)
     }
 
+    max.haplo <- max(frac.calleable$n)
 
     ggplot(frac.calleable, aes(x = n, y = locus)) +
       geom_point() +
@@ -763,9 +881,11 @@ shinyServer(function(input, output, session) {
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.margin = unit(0, 'mm'),
+        panel.border = element_rect(size = 0),
         plot.margin = unit(c(0, 2, 0, 0), "mm")
       ) +
       ylim(locusPg$l) +
+      scale_x_continuous(limits=c(0,max.haplo+1),breaks=round(seq(1,max.haplo, length.out=4)))+
       coord_cartesian(ylim = rangesH$y)
     #scale_x_discrete(limits=c(-1, max(frac.calleable$n)+1)) #breaks= pretty_breaks()
   }, height = function()
@@ -774,13 +894,13 @@ shinyServer(function(input, output, session) {
         input$selectLocus == "ALL",
         ifelse(
           input$locusPerDisplay == 100,
-          9 *
+          10 *
             length(panelParam$locus.label),
-          9 *
+          10 *
             as.numeric(input$locusPerDisplay)
         ),
         1
-      ), 250
+      ), 400
     )))
 
   output$fracIndivPlot <- renderPlot({
@@ -820,7 +940,8 @@ shinyServer(function(input, output, session) {
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(0, 1, 0, 0), "mm")
+        panel.border = element_rect(size = 0),
+        plot.margin = unit(c(0, 3, 0, 0), "mm")
       ) +
       ylim(locusPg$l) +
       coord_cartesian(ylim = rangesH$y) +
@@ -832,11 +953,11 @@ shinyServer(function(input, output, session) {
                input$selectLocus == "ALL",
                ifelse(
                  input$locusPerDisplay == 100,
-                 9 * length(panelParam$locus.label),
-                 9 * as.numeric(input$locusPerDisplay)
+                 10 * length(panelParam$locus.label),
+                 10 * as.numeric(input$locusPerDisplay)
                ),
                1
-             ), 250
+             ), 400
            )))
 
   output$readDepthPerLocus <- renderPlot({
@@ -878,6 +999,7 @@ shinyServer(function(input, output, session) {
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.margin = unit(0, 'mm'),
+        panel.border = element_rect(size = 0),
         plot.margin = unit(c(0, 0, 0, 0), "mm")
       ) +
       scale_y_log10() +
@@ -889,13 +1011,13 @@ shinyServer(function(input, output, session) {
         input$selectLocus == "ALL",
         ifelse(
           input$locusPerDisplay == 100,
-          9 *
+          10 *
             length(panelParam$locus.label),
-          9 *
+          10 *
             as.numeric(input$locusPerDisplay)
         ),
         1
-      ), 250
+      ), 400
     )))
 
 
@@ -915,7 +1037,7 @@ shinyServer(function(input, output, session) {
       filter(depth >= filterParam$minRD,
              allele.balance >= filterParam$minAR)
 
-    if (input$topTwo)
+    if ("1" %in% input$filterOpts)
       haplo.filter <- haplo.filter %>% filter(rank <= 2)
 
     if (input$selectLocus != "ALL")
@@ -957,10 +1079,12 @@ shinyServer(function(input, output, session) {
       ) +
       theme_bw() +
       ylab("individual ID") +
-      xlab ("depth ratio of the 2nd : 1st common haplotype") +
+      xlab ("ratio of the 2nd : 1st common haplotype\n(allelic ratio)") +
       theme(
         legend.position = "bottom",
         panel.margin = unit(0, 'mm'),
+        panel.border = element_rect(size = 0),
+        axis.line.y = element_line(color="grey", size = 0.5),
         plot.margin = unit(c(0, 2, 0, 0), "mm")
       ) +
       xlim(c(0, 1)) +
@@ -978,11 +1102,11 @@ shinyServer(function(input, output, session) {
                input$selectIndiv == "ALL",
                ifelse(
                  input$indivPerDisplay == 100,
-                 9 * length(panelParam$indiv.label),
-                 9 * as.numeric(input$indivPerDisplay)
+                 10 * length(panelParam$indiv.label),
+                 10 * as.numeric(input$indivPerDisplay)
                ),
                1
-             ), 250
+             ), 400
            )))
 
 
@@ -1009,20 +1133,23 @@ shinyServer(function(input, output, session) {
 
     tot.hap.per.indiv[is.na(tot.hap.per.indiv)] <- 0
 
+    max.locus <- max(tot.hap.per.indiv$n.hap.locus)
 
     ggplot(tot.hap.per.indiv, aes(x = n.hap.locus, y = id, size = n.locus)) +
       geom_point() +
-      xlab("num of haplotype per locus") +
+      xlab("num of haplotype\n(per locus)") +
       ylab("") +
       scale_size_continuous(guide = FALSE) + #"fraction")+
       theme_bw() +
       theme(
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
-        panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(0, 2, 0, 0), "mm")
+        panel.margin = unit(c(0,0,0,0), 'mm'),
+        panel.border = element_rect(size = 0),
+        plot.margin = unit(c(0, 3, 0, 0), "mm")
       ) +
       ylim(indivPg$i) +
+      scale_x_continuous(limits=c(0,max.locus+1),breaks=round(seq(1,max.locus, length.out=4)))+
       coord_cartesian(ylim = ranges$y)
     #scale_x_discrete(limits=c(-1, max(frac.calleable$n)+1)) #breaks= pretty_breaks()
   }, height = function()
@@ -1032,11 +1159,11 @@ shinyServer(function(input, output, session) {
                input$selectIndiv == "ALL",
                ifelse(
                  input$indivPerDisplay == 100,
-                 9 * length(panelParam$indiv.label),
-                 9 * as.numeric(input$indivPerDisplay)
+                 10 * length(panelParam$indiv.label),
+                 10 * as.numeric(input$indivPerDisplay)
                ),
                1
-             ), 250
+             ), 400
            )))
 
   output$fracHaploPlot <- renderPlot({
@@ -1069,7 +1196,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(haplo.filter, aes(x = f, y = id, color = f)) +
       geom_point() +
-      xlab("fraction of calleable haplotypes") +
+      xlab("fraction of calleable\n haplotypes") +
       ylab("") +
       scale_color_continuous(guide = FALSE) + #"fraction")+
       theme_bw() +
@@ -1077,7 +1204,8 @@ shinyServer(function(input, output, session) {
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(0, 2, 0, 0), "mm")
+        panel.border = element_rect(size = 0),
+        plot.margin = unit(c(0,4, 0, 0), "mm")
       ) +
       #plot.margin = unit(c(0, 0, 0, 0), "mm"))+
       ylim(indivPg$i) +
@@ -1090,11 +1218,11 @@ shinyServer(function(input, output, session) {
                input$selectIndiv == "ALL",
                ifelse(
                  input$indivPerDisplay == 100,
-                 9 * length(panelParam$indiv.label),
-                 9 * as.numeric(input$indivPerDisplay)
+                 10 * length(panelParam$indiv.label),
+                 10 * as.numeric(input$indivPerDisplay)
                ),
                1
-             ), 250
+             ), 400
            )))
 
   # output$meanReadDepthByIndiv <- renderPlot({
@@ -1165,7 +1293,7 @@ shinyServer(function(input, output, session) {
 
     ggplot(haplo.filter, aes(x = id, y = depth, group = id)) +
       xlab("") +
-      ylab("haplotype read depth") +
+      ylab("haplotype read depth\n(per locus)") +
       geom_violin() +
       geom_point() +
       #geom_point(aes(x=id, y=mean.depth),pch=3, cex=3)+
@@ -1174,10 +1302,11 @@ shinyServer(function(input, output, session) {
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.margin = unit(0, 'mm'),
+        panel.border = element_rect(size = 0),
         plot.margin = unit(c(0, 2, 0, 0), "mm")
       ) +
       #plot.margin = unit(c(0, 0, 0, 0), "mm"))+
-      #scale_y_log10()+
+      scale_y_log10()+
       xlim(indivPg$i) +
       coord_flip(xlim = ranges$y)
 
@@ -1188,11 +1317,11 @@ shinyServer(function(input, output, session) {
                input$selectIndiv == "ALL",
                ifelse(
                  input$indivPerDisplay == 100,
-                 9 * length(panelParam$indiv.label),
-                 9 * as.numeric(input$indivPerDisplay)
+                 10 * length(panelParam$indiv.label),
+                 10 * as.numeric(input$indivPerDisplay)
                ),
                1
-             ), 250
+             ), 400
            )))
 
   #   output$distPlot <- renderPlot({
@@ -1279,34 +1408,34 @@ shinyServer(function(input, output, session) {
 
   # by-group distribution panel
 
-  output$nIndivByGroupPlot <- renderPlot({
-    if (is.null(input$selectLocus) ||
-        is.null(input$selectIndiv) ||
-        input$selectDB == "" || is.null(locusPg$l))
-      return ()
-
-    filter.tbl <-
-      Filter.haplo.sum() %>% group_by(group) %>% summarise(n.indiv = length(unique(id)))
-
-    ggplot(filter.tbl, aes(x = n.indiv, y = group, color = group)) +
-      geom_point() +
-      xlab("num of indiv") +
-      ylab("") +
-      scale_color_discrete(guide = FALSE) +
-      theme_bw() +
-      theme(
-        #axis.text.y=element_blank(),
-        axis.ticks.y = element_blank(),
-        panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(0, 0, 0, 0), "mm")
-      )
-  }, height = function() {
-    ifelse(
-      groupPg$width == 0,
-      0,
-      ifelse(input$selectGroup == "ALL", 100 * panelParam$n.group, 100)
-    )
-  })
+  # output$nIndivByGroupPlot <- renderPlot({
+  #   if (is.null(input$selectLocus) ||
+  #       is.null(input$selectIndiv) ||
+  #       input$selectDB == "" || is.null(locusPg$l))
+  #     return ()
+  # 
+  #   filter.tbl <-
+  #     Filter.haplo.sum() %>% group_by(group) %>% summarise(n.indiv = length(unique(id)))
+  # 
+  #   ggplot(filter.tbl, aes(x = n.indiv, y = group, color = group)) +
+  #     geom_point() +
+  #     xlab("num of indiv") +
+  #     ylab("") +
+  #     scale_color_discrete(guide = FALSE) +
+  #     theme_bw() +
+  #     theme(
+  #       #axis.text.y=element_blank(),
+  #       axis.ticks.y = element_blank(),
+  #       panel.margin = unit(0, 'mm'),
+  #       plot.margin = unit(c(0, 0, 0, 0), "mm")
+  #     )
+  # }, height = function() {
+  #   ifelse(
+  #     groupPg$width == 0,
+  #     0,
+  #     ifelse(input$selectGroup == "ALL", 100 * panelParam$n.group, 100)
+  #   )
+  # })
 
   output$fIndivByGroupPlot <- renderPlot({
     if (is.null(input$selectLocus) ||
@@ -1342,12 +1471,15 @@ shinyServer(function(input, output, session) {
         pch = 3,
         cex = 3
       ) +
+      geom_text(data=filter.indiv, aes(y=group, x=1.2, label=paste0(fIndiv," indiv")))+
       xlab("frac of indiv w/ calleable hap") +
+      scale_x_continuous(limits=c(0,1.3), breaks=seq(0,1,0.2))+
       ylab("") +
       scale_color_discrete(guide = FALSE) + #"fraction")+
       theme_bw() +
       theme(
-        axis.text.y = element_blank(),
+        #axis.text.y = element_blank(),
+        panel.border = element_rect(size = 0),
         axis.ticks.y = element_blank(),
         panel.margin = unit(0, 'mm'),
         plot.margin = unit(c(0, 0, 0, 0), "mm")
@@ -1360,34 +1492,34 @@ shinyServer(function(input, output, session) {
     )
   })
 
-  output$nLociByGroupPlot <- renderPlot({
-    if (is.null(input$selectLocus) ||
-        is.null(input$selectIndiv) ||
-        input$selectDB == "" || is.null(locusPg$l))
-      return ()
-
-    filter.tbl <-
-      Filter.haplo.sum() %>% group_by(group) %>% summarise(n.locus = length(unique(locus)))
-
-    ggplot(filter.tbl, aes(x = n.locus, y = group, color = group)) +
-      geom_point() +
-      xlab("num of loci") +
-      ylab("") +
-      scale_color_discrete(guide = FALSE) +
-      theme_bw() +
-      theme(
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(0, 0, 0, 0), "mm")
-      )
-  }, height = function() {
-    ifelse(
-      groupPg$width == 0,
-      0,
-      ifelse(input$selectGroup == "ALL", 100 * panelParam$n.group, 100)
-    )
-  })
+  # output$nLociByGroupPlot <- renderPlot({
+  #   if (is.null(input$selectLocus) ||
+  #       is.null(input$selectIndiv) ||
+  #       input$selectDB == "" || is.null(locusPg$l))
+  #     return ()
+  # 
+  #   filter.tbl <-
+  #     Filter.haplo.sum() %>% group_by(group) %>% summarise(n.locus = length(unique(locus)))
+  # 
+  #   ggplot(filter.tbl, aes(x = n.locus, y = group, color = group)) +
+  #     geom_point() +
+  #     xlab("num of loci") +
+  #     ylab("") +
+  #     scale_color_discrete(guide = FALSE) +
+  #     theme_bw() +
+  #     theme(
+  #       axis.text.y = element_blank(),
+  #       axis.ticks.y = element_blank(),
+  #       panel.margin = unit(0, 'mm'),
+  #       plot.margin = unit(c(0, 0, 0, 0), "mm")
+  #     )
+  # }, height = function() {
+  #   ifelse(
+  #     groupPg$width == 0,
+  #     0,
+  #     ifelse(input$selectGroup == "ALL", 100 * panelParam$n.group, 100)
+  #   )
+  # })
 
   output$fLociByGroupPlot <- renderPlot({
     if (is.null(input$selectLocus) ||
@@ -1423,13 +1555,16 @@ shinyServer(function(input, output, session) {
         pch = 3,
         cex = 3
       ) +
+      geom_text(data=filter.locus, aes(y=group, x=1.2, label=paste0(fLocus," indiv")))+
       xlab("frac of loci w/ calleable hap") +
       ylab("") +
       scale_color_discrete(guide = FALSE) + #"fraction")+
+      scale_x_continuous(limits=c(0,1.3), breaks=seq(0,1,0.2))+
       theme_bw() +
       theme(
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
+        panel.border = element_rect(size = 0),
         panel.margin = unit(0, 'mm'),
         plot.margin = unit(c(0, 0, 0, 0), "mm")
       )
@@ -1469,6 +1604,8 @@ shinyServer(function(input, output, session) {
       )+
       theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),
             panel.margin = unit(0, 'mm'),
+            panel.border = element_rect(size = 0),
+            #axis.line.x = element_line(color="grey", size = 0.5),
         plot.margin = unit(c(2, 0, 2, 0), "mm"))
       # geom_vline(
       #   xintercept = filterParam$hover.minRD,
@@ -1504,7 +1641,8 @@ shinyServer(function(input, output, session) {
       )+
       theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),
             panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(2, 0, 2, 0), "mm"))
+            panel.border = element_rect(size = 0),
+        plot.margin = unit(c(2, 0, 2, 1), "mm"))
       # geom_vline(
       #   xintercept = filterParam$hover.minAR,
       #   linetype = "dashed",
@@ -1545,6 +1683,7 @@ shinyServer(function(input, output, session) {
         scale_y_continuous("",breaks=NULL,limits=c(0,0.1))+ #breaks=1
         theme_bw()+
         theme(strip.text.y = element_text(angle =360, margin=margin(0,2,0,2)),
+              strip.background  = element_rect(fill="white",size = 0),
               panel.margin = unit(0, 'mm'),
               plot.margin = unit(c(2, 0, 6, 0), "mm"),
               aspect.ratio =1000)
@@ -1610,7 +1749,9 @@ shinyServer(function(input, output, session) {
       )+
       theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),
             panel.margin = unit(0, 'mm'),
-        plot.margin = unit(c(2, 0, 2, 0), "mm"))
+            panel.border = element_rect(size = 0),
+            #axis.line.y = element_line(color="grey", size = 1),
+        plot.margin = unit(c(2, 0, 2, 1), "mm"))
 
   }, height = function() {
     ifelse(hapPg$width == 0,
@@ -1654,7 +1795,9 @@ shinyServer(function(input, output, session) {
         linetype = "dashed",
         color = "red"
       )+
-      theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),panel.margin = unit(0, 'mm'),
+      theme(strip.text.y = element_text(angle =360,size=0, margin=margin(0,0,0,0)),
+            panel.border = element_rect(size = 0),
+            panel.margin = unit(0, 'mm'),
         plot.margin = unit(c(2, 0, 2, 0), "mm"))
 
   }, height = function() {
@@ -1680,6 +1823,7 @@ shinyServer(function(input, output, session) {
     haplo.filter <- Filter.haplo.sum()
     
     pos.file <- extract.pos.file()
+    if(is.null(pos.file)) return()
     pos.str <- pos.file %>% filter(locus==input$selectLocus) %>% select(pos) %>% unlist
     position <- strsplit(pos.str, ",") %>% unlist %>% as.numeric
 
@@ -1740,11 +1884,12 @@ shinyServer(function(input, output, session) {
     g + scale_size_continuous(guide = FALSE) +
       scale_color_discrete(guide = FALSE) +
       theme_bw() +
-      theme(legend.position = "bottom")
+      theme(legend.position = "bottom",panel.border = element_rect(size = 0),
+                  axis.line.x = element_line(color="black", size = 0.5))
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
-           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*20, 300)))
+           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*20, 400)))
   })
 
   output$histHap <- renderPlot({
@@ -1813,18 +1958,34 @@ shinyServer(function(input, output, session) {
     )) +
       geom_point(size = 4) +
       scale_color_discrete(guide = FALSE) +
-      geom_text(data=haplo.tot.read.tbl, aes(y=hap1, x=1, label=tot.depth))+
+      geom_text(data=haplo.tot.read.tbl, aes(y=hap1, x=1, label=paste0(tot.depth," reads")))+
       xlab("observed freq") +
       ylab("haplotype") +
-      xlim(c(0,1.1))+
+      scale_x_continuous(limits=c(0,1.1), breaks=c(0,0.3,0.6,0.9))+
+      #xlim(c(0,1.1))+
       theme_bw()+
-      theme(plot.margin = unit(c(2, 0, 2, 0), "mm"))
+      theme(plot.margin = unit(c(2, 0, 2, 0), "mm"),
+            panel.border = element_rect(size = 0))
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
-           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*30, 300)))
+           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*30, 400)))
   })
 
+  output$hwClicked <- renderText({
+
+    nearpoint <- nearPoints(hapPg$HW.tbl, input$HWplotClick, xvar="hap1", yvar="hap2", threshold = 5,
+                            maxpoints = 1)
+    
+    if((!is.null(nearpoint)) && ncol(nearpoint)>0) {
+      hapPg$HW.exp <- nearpoint$size
+      hapPg$HW.obs <- nearpoint$n.x
+    }
+    
+    if (is.null(hapPg$HW.exp) | length(hapPg$HW.exp)==0) return(paste0("Click on a microhaplotype pair at HW-plot for details:"))
+    paste0("For this selected pair, the expected and observed counts are ", round(hapPg$HW.exp,1)," and ", round(hapPg$HW.obs), ", respectively.")
+  })
+  
 
 
   output$PairWiseHap <- renderPlot({
@@ -1872,10 +2033,14 @@ shinyServer(function(input, output, session) {
                                                           hap2 = factor(as.numeric(factor(hap2, levels=all.hap)),
                                                                         levels=1:length(all.hap)))
 
-    freq.hap <- freq.hap %>% ungroup() %>% mutate(re.hap1 = factor(as.numeric(factor(re.hap1, levels=all.hap)),
+    freq.hap <- freq.hap %>% ungroup() %>% mutate(hap1 = factor(as.numeric(factor(re.hap1, levels=all.hap)),
                                                                    levels=1:length(all.hap)),
-                                                  re.hap2 = factor(as.numeric(factor(re.hap2, levels=all.hap)),
-                                                                   levels=1:length(all.hap)))
+                                                  hap2 = factor(as.numeric(factor(re.hap2, levels=all.hap)),
+                                                                   levels=1:length(all.hap)),
+                                                  size = freq * n.hap / 2)
+    
+    
+    hapPg$HW.tbl <- left_join(haplo.filter, freq.hap ,by=c("hap1", "hap2"))
 
     ggplot(haplo.filter,
            aes(
@@ -1885,13 +2050,13 @@ shinyServer(function(input, output, session) {
              color = hap1 == hap2
            )) +
       geom_point() +
-      xlab("haplotype 2") +
+      xlab("H-W plot: haplotype pair (x,y)") +
       ylab("") +
       geom_point(
         data = freq.hap,
         aes(
-          x = re.hap1,
-          y = re.hap2,
+          x = hap1,
+          y = hap2,
           size = freq * n.hap / 2
         ),
         shape = 21,
@@ -1903,14 +2068,15 @@ shinyServer(function(input, output, session) {
       scale_x_discrete(limits=1:length(all.hap))+
       scale_y_discrete(limits=1:length(all.hap))+
       theme_bw()+
-      theme(#axis.text.y = element_blank(),
+      theme(axis.text.y = element_blank(),
         #axis.ticks.y = element_blank(),
         #panel.margin = unit(0, 'mm'),
+        panel.border = element_rect(size = 0),
         plot.margin = unit(c(2, 0, 2, 0), "mm"))
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
-           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*30, 300)))
+           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*30, 400)))
   })
 
   output$hapByGroupPlot <- renderPlot({
@@ -1948,12 +2114,14 @@ shinyServer(function(input, output, session) {
       ylab("") +
       theme_bw() +
       scale_color_discrete(guide = FALSE) +
-      scale_size_continuous(guide = FALSE)
+      scale_size_continuous(guide = FALSE)+
+      theme(panel.border = element_rect(size = 0))
+            #axis.line.x = element_line(color="black", size = 0.5))
 
   }, height = function() {
     ifelse(groupPg$width == 0,
            0,
-           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*20, 300)))
+           ifelse(input$selectLocus == "ALL", 0, max(hapPg$width*20, 400)))
   })
 
 
@@ -2008,7 +2176,7 @@ shinyServer(function(input, output, session) {
       mutate(color.grp = 1*(filterParam$minRD==rd) + (1*filterParam$minAR==af))
 
     ggplot(rd.af.grid.tbl, aes(x=factor(rd), y=factor(af))) +
-      geom_tile(color="black", aes(fill=factor(color.grp)))+
+      geom_tile(color="black", aes(fill=factor(color.grp)), size=0.1, linetype="dashed")+
       geom_text(aes(label=content))+
       theme_bw()+
       theme(legend.position = "none",
@@ -2036,6 +2204,8 @@ shinyServer(function(input, output, session) {
         return ("observed_unfiltered_haplotype.csv")
       if (input$selectTbl == "SNP report")
         return ("snp_report.csv")
+      if (input$selectTbl == "locus annotation")
+        return ("locus_annotation.csv")
     }
     ,
     content = function(file) {
@@ -2090,6 +2260,10 @@ shinyServer(function(input, output, session) {
         write.csv(haplo.all, file)
 
       }
+      if (isolate(input$selectTbl) ==  "locus annotation") {
+#        if (is.null(Filter.haplo.sum())) return()
+        write.csv(annotateTab$tbl, file)
+      }
 
 
     }
@@ -2112,14 +2286,14 @@ shinyServer(function(input, output, session) {
         left_join(haplo.all.tbl,
                   haplo.freq,
                   by = c("locus", "haplotype.1", "haplotype.2"))
-      haplo.isAccept <-
-        data.frame(
-          locus = panelParam$locus.label.bare,
-          is.reject = panelParam$is.reject,
-          stringsAsFactors = FALSE
-        )
-      haplo.all <-
-        left_join(haplo.all, haplo.isAccept, by = c("locus"))
+      # haplo.isAccept <-
+      #   data.frame(
+      #     locus = panelParam$locus.label.bare,
+      #     is.reject = panelParam$is.reject,
+      #     stringsAsFactors = FALSE
+      #   )
+      # haplo.all <-
+      #   left_join(haplo.all, haplo.isAccept, by = c("locus"))
     }
 
     if (input$selectTbl ==  "observed variants (unfiltered)") {
@@ -2159,6 +2333,10 @@ shinyServer(function(input, output, session) {
                  substr(haplotype.2, snp.id, snp.id)
                )) %>%
         select(-haplotype.1,-haplotype.2,-read.depth.1,-read.depth.2)
+    }
+    
+    if (isolate(input$selectTbl) ==  "locus annotation") {
+      haplo.all <- annotateTab$tbl
     }
 
 
