@@ -144,8 +144,10 @@ runHaplot <- function(run.label, sam.path, label.path, vcf.path,
     .[,1:2] %>% # grabbing locus name, and pos
     dplyr::group_by(V1) %>%
     dplyr::summarise(pos=paste0(V2, collapse=","))
+  
+  colnames(vcf.pos.tbl) <- c("locus","pos")
 
-  saveRDS(vcf.pos.tbl, paste0(out.path, "/",run.label,"_pos.rds"))
+  saveRDS(vcf.pos.tbl, paste0(out.path, "/",run.label,"_posinfo.rds"))
 
   cat(paste0("\n\nRDS file: copied into shiny directory: ",app.path, "/",run.label,"*.rds ",
              "\nRun runHaplotype() to open shiny app.\n\n"))
