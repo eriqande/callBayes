@@ -10,13 +10,6 @@ library("scales")
 library("haplot")
 library("reshape2")
 
-# haplo.cutoff <- haplo.sum %>%
-#   group_by(locus, id) %>%
-#   summarise(hapl.three.pl.st = ifelse(length(depth) > 2, 0, 0),
-#             hapl.three.pl.end = ifelse(length(depth) > 2, sort(depth, decr=T)[3]-1, 0),
-#             hapl.one.st = ifelse(sum(depth==max(depth))==1 && length(depth) > 1, sort(depth, decr=T)[2], 0),
-#             hapl.one.end = ifelse(sum(depth==max(depth))==1, max(depth),0))
-
 
 shinyServer(function(input, output, session) {
   dirFiles <- list.files()
@@ -33,15 +26,7 @@ shinyServer(function(input, output, session) {
                       "selectDB",
                       selected = select.file.tem,
                       choices = dirFiles[rds.file])
-    # haplo.sum <-
-    #   readRDS(select.file.tem)  %>% mutate(id = as.character(id))
   }
-  else {
-    haplo.sum <- NULL
-  }
-
-
-  #makeReactiveBinding("haplo.sum")
 
   update.Haplo.file <- reactive({
     if (input$selectDB == "" ||
@@ -185,11 +170,6 @@ shinyServer(function(input, output, session) {
                       selected = "ALL",
                       choices = panelParam$group.label)
     
-    #updateSelectInput(session,
-    #                  "selectTbl",
-    #                  selected = "observed variants")
-
-
     end.indx <- min(15, panelParam$n.locus)
     locusPg$l <- panelParam$locus.label.bare[1:end.indx]
     rangesH$y <- c(0, length(locusPg$l) + 1)
@@ -330,6 +310,7 @@ shinyServer(function(input, output, session) {
       updateCheckboxGroupInput(session,
                                "filterOpts", 
                                choices=list("keeps only top two haplotypes (per indiv)"=1))
+      removePopover(session, "filterOpts")
       
       locusPg$l <- input$selectLocus
       rangesH$y <- c(0, 2)
@@ -346,7 +327,16 @@ shinyServer(function(input, output, session) {
                                "filterOpts", 
                                choices=list("keeps only top two haplotypes (per indiv)"=1,
                                             "overrides all loci"=2,
-                                            "serves as minimal baseline for all loci"=3))
+                                            "serves as minimal baseline"=3))
+      
+      addPopover(session, "filterOpts","Options",
+                 content=paste0("<p><b>overrides all loci</b>: this option disregards single-locus specific value in 
+                                replace of the current selection of min. read depth and allelic ratio</p>",
+                                "<p></p>",
+                                "<p><b>serves as minimal baseline</b>:all loci must pass the current filter values and 
+                                each of their own locus-specific filter value</p> "),
+                 placement="bottom",
+                 trigger="hover")
       
       # output$locusAcceptStatus <- renderText({
       #   "NA"
@@ -1452,6 +1442,9 @@ shinyServer(function(input, output, session) {
       left_join(filter.indiv, all.indiv, by = c("group", "locus")) %>% mutate(f =
                                                                                 fIndiv / nIndiv)
 
+    filter.indiv <- filter.indiv %>% group_by(group) %>% summarise(fIndiv = round(mean(fIndiv)))
+      
+      
     mean.f.tbl <-
       frac.calleable %>% group_by(group) %>% summarise(mean.f = mean(f, na.rm =
                                                                        T))
@@ -1535,6 +1528,8 @@ shinyServer(function(input, output, session) {
     frac.calleable <-
       left_join(filter.locus, all.locus, by = c("group", "id")) %>% mutate(f =
                                                                              fLocus / nLocus)
+    filter.locus <- filter.locus %>% group_by(group) %>% summarise(fLocus = round(mean(fLocus)))
+    
 
     mean.f.tbl <-
       frac.calleable %>% group_by(group) %>% summarise(mean.f = mean(f, na.rm =
