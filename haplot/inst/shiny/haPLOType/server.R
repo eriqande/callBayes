@@ -326,11 +326,14 @@ shinyServer(function(input, output, session) {
       updateCheckboxGroupInput(session,
                                "filterOpts", 
                                choices=list("keeps only top two haplotypes (per indiv)"=1,
-                                            "overrides all loci"=2,
+                                            "relies only on locus-specific param."=2,
                                             "serves as minimal baseline"=3))
       
       addPopover(session, "filterOpts","Options",
-                 content=paste0("<p><b>overrides all loci</b>: this option disregards single-locus specific value in 
+                 content=paste0("<p>By default, the observed microhaplotypes must pass the current selected filter criteria</p>",
+                                "<p></p>",
+                                "<p><b>relies only on locus-specific param.</b>: this option disregards the current filter values",
+                                "but, instead, relies on single-locus specific value in 
                                 replace of the current selection of min. read depth and allelic ratio</p>",
                                 "<p></p>",
                                 "<p><b>serves as minimal baseline</b>:all loci must pass the current filter values and 
